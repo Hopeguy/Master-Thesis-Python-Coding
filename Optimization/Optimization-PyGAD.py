@@ -70,7 +70,7 @@ crossover_type = "single_point"
 mutation_type = "random"
 mutation_percent_genes = 5
 
-gene_space = np.array([range(0, 1000), range(0, 100)]) 
+gene_space = np.array([range(0, 1000), range(0, 1000)]) 
 
 Battery_size = list(range(1, 101))  # kWh
 Battery_power = list(range(1, 101))  # kW
@@ -88,7 +88,7 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        init_range_high=init_range_high,
                        parent_selection_type=parent_selection_type,
                        keep_parents=keep_parents,
-                       callback_generation=callback_gen,
+                       # callback_generation=callback_gen,
                        crossover_type=crossover_type,
                        mutation_type=mutation_type,
                        mutation_percent_genes=mutation_percent_genes,

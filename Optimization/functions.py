@@ -11,11 +11,9 @@ import numpy_financial as npf
 
 def ESS_schedule(ESS_capacity_size, ESS_power,
                  Energy_hourly_cost, Average_median_cost_day,
-                 Energy_hourly_use, ESS_discharge_eff, ESS_charge_eff, Year):
+                 Energy_hourly_use, ESS_discharge_eff, ESS_charge_eff, Year, ESS_capacity_prev_year):
     """
     Where:
-    ESS_capacity_max is in kWh, max allowed kWh for that unit;
-    ESS_capacity_min is in kWh, min allowed kWh for that unit;
     ESS_power in kW;
     Energy_hourly cost in pence and all hours of a year (list of 8760 hours);
     Average_median_cost_day in pence for each day of a year (list if 365 days);
@@ -45,12 +43,9 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     # States that the min SoC is 10% of max capacity #source on this later
     ESS_capacity_min = ESS_capacity_size*0.1
 
-    # This is as the power goes between 0-10 kw, but the number are generated from 0-100
-    ESS_power = ESS_power/10
-
     # Matrix to store Capacity and power input/output for each hour.
     schedule_charge_discharge = np.zeros((8760, 2))
-    ESS_capacity = 0  # Starts at zero energy in the ESS unit
+    ESS_capacity = ESS_capacity_prev_year  # Starts at what value one inputs, but should be that it saved the energy from last year.
     hour_year = 0
     
 
@@ -101,11 +96,32 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
 
             hour_year += 1  # At what hour we are in during the year
 
-    # Returns a 8760x2 matrix where the first column is the charge schedule, and the second is the discharge scehdule
-    return np.array(schedule_charge_discharge)
+    # Returns a 8760x2 matrix where the first column is the charge schedule, and the second is the discharge scehdule, third is the capacity at the end of the year
+    #The discharge and charge is how much kWh that is charged or discharge at each hour
+    return np.array(schedule_charge_discharge), ESS_capacity
 
 # -------------------------------------------------------
 
+def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
+    """'
+    Where intreset rate is in 0.08 for 8%
+    CAPEX is in EURO
+    Yearly cost is an array with each years total cost (O&M, charge)
+    Yearly energy out is an array with each year total output from ESS
+    """
+    cost_intreset = 0
+    for year, c in enumerate(Yearly_cost):
+       cost_intreset += c/((1+discount_rate)**(year+1)) #as the enumerate counting start at 0, we add 1, at year zero we only have CAPEX
+       
+       
+       
+    energy_interset = 0
+    for year, w in enumerate(Yearly_energy_out):
+       energy_interset += w/((1+discount_rate)**(year+1))
+
+    LCOS = (CAPEX + cost_intreset)/energy_interset
+    
+    return -LCOS
 
 def Fitness_NPV(discount_rate, cashflows):
     """
@@ -116,88 +132,25 @@ def Fitness_NPV(discount_rate, cashflows):
 
     return NPV
 
-def NPV_charging(discount_rate, cashflows_charging):
-    """
-    Rate is the discount rate
-    """
-    
-    NPV_char = npf.npv(discount_rate, cashflows_charging)
-    
-    return NPV_char
 
-def NPV_OM(discount_rate, cashflows_OM):
-    
-    NPV = npf.npv(discount_rate, cashflows_OM)
-    
-    return NPV
 
-def cashflow_yearly(schedule_load, schedule_discharge, demand_cost):
+def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost): #Gives the profits after all yearly costs and profits
     
     
     profit = np.sum(schedule_discharge*demand_cost)
     cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m = 0  #Dependent on year or hourly use per year. 
+    cost_o_and_m = np.sum(schedule_discharge*Fixed_O_and_M_cost) + (np.sum(schedule_discharge*Variable_O_and_M_cost)/1000)  #Dependent on year or hourly use per year. 
     
     cashflow_total =  profit - cost_charge - cost_o_and_m  #This is the total cashflow after a year with all calculations included
     return cashflow_total
 
-def Roulette_wheel_selection(Population):
-    """
-    Takes the whole populations with the fitness values included in each solutions
-    these are used to randomly choose a parent solution with unifrom distribution
-    The population needs to be a np.array!!!!
-    """
+def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost): #Gives the profits after all yearly costs and profits
     
-    #THIS CODES NEED TO BE REWRITTEN AS IT DOES NOT WORK IF WE HAVE NEGATIVE NPV VALUES FOR THE FITNESS
-    #Therefore, we could just set them to zero so they wont ever be picked, but that would make the code biased!!!!
+
+    cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
+    cost_o_and_m = np.sum(schedule_discharge*Fixed_O_and_M_cost) + (np.sum(schedule_discharge*Variable_O_and_M_cost)/1000)  #Dependent on year or hourly use per year. 
     
-    #Based on this method : https://www.tutorialspoint.com/genetic_algorithms/genetic_algorithms_parent_selection.htm
-        
-    
-    population_fitness = np.sum(Population[:,2]) #Sum upp the fitness values from all the solutions in the population
-    
-    #print(population_fitness)
-    rand_numb = np.random.randint(1, int(population_fitness)) #Generates a ranodom number between 1 and int of sum of the fitness values
-    add_partial = 0
-    counter = 0
-    #print(rand_numb, "RAND NUMBER")  
-    while add_partial < rand_numb:
-        if add_partial < rand_numb:
-            add_partial += Population[counter][2]
-            #print(add_partial, counter)       
-            counter += 1
-            
-    Parent = Population[counter-1]
-       
-    return Parent #Returns the array of information of the parent for that list of the population
+    cost_yearly = cost_charge + cost_o_and_m  #This is the total cashflow after a year with all calculations included
+   
+    return cost_yearly
 
-
-def Tournament_selection(Population): ###This can be used for parent selection with negative fitness values.
-    
-    Parent = 0
-    return Parent
-
-
-
-
-def Fitness_max_saved(Energy_hourly_use, schedule, Energy_hourly_cost, ESS_power, ESS_capacity, ESS_capacity_cost,
-                      ESS_power_cost, ESS_O_and_M_cost, Base_case_cost):
-    # Fittness function to minimize the cost of energy per year including installing ESS----------
-    # Swithcing this to maximise the value gained from installing ESS by taken the
-    # energy saved from base case minus the cost of the ESS
-    
-    ESS_power = ESS_power/10    #As the values are randomly from 0-100, but we look at the power like 0-10
-
-    ESS_total_cost = (ESS_power*ESS_power_cost) + (ESS_capacity *
-                                                   ESS_capacity_cost) + (ESS_O_and_M_cost*ESS_capacity)
-
-    # positive as discharge are negative values
-    New_load_demand = power_load_59 + schedule[:, 0]
-
-    New_case_cost = 0
-    for Count_2, El_2 in enumerate(New_load_demand):
-        New_case_cost += (El_2/1000)*(Energy_hourly_cost[Count_2])
-
-    max_saved = (Base_case_cost - New_case_cost) - ESS_total_cost
-
-    return max_saved

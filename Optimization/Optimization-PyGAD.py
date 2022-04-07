@@ -26,28 +26,66 @@ import time
 import pygad
 
 
-def fitness_func(solution, solution_idx):
-    discount_rate = 0.08
+def fitness_func_NPV(solution, solution_idx):
+    """
+    Returns the NPV value (used as fitness value in GA)
+    """
+    
     
 
-    ESS_capacity, ESS_power = solution[0], solution[1]/10
+    ESS_capacity, ESS_power = solution[0], solution[1]
+    
     cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost))] #First Year is just capex cost and negative as it is a cost
-
+    ESS_capacity_year = 0 #Starts with zero eneryg in the storage
     for year in range(1,11): # starts at year 1 and includes year 10
-                
+        
         Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
                                         Energy_hourly_cost=Energy_hourly_cost,
                                         Average_median_cost_day=Average_median_cost_day,
                                         Energy_hourly_use=Energy_hourly_use,
-                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = year)
+                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = year, ESS_capacity_prev_year= ESS_capacity_year)
     
                 
         #This calculates the cost of buying and using the ESS storage, as well as the profits of sell energy from it, and inputs that into an array for each year.
         #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
-        cashflow_each_year.append(fun.cashflow_yearly(schedule_load = Schedule[:, 0], schedule_discharge = Schedule[:,1], demand_cost = Energy_hourly_cost))
+        New_schedule = Schedule[0]
+        ESS_capacity_year += Schedule[1]  #Inputs the preveious years ess capacity to next years
+        cashflow_each_year.append(fun.cashflow_yearly_NPV(schedule_load = New_schedule[:, 0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
+                                                          Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost))
 
-    fitness = fun.Fitness_NPV(discount_rate = discount_rate, cashflows = cashflow_each_year)
+    fitness = fun.Fitness_NPV(discount_rate = Discount_rate, cashflows = cashflow_each_year)
     return fitness
+
+
+def fitness_func_LCOS(solution, solution_idx):
+    
+    ESS_capacity, ESS_power = solution[0], solution[1]
+    CAPEX = ((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost)) 
+    Cost_yearly = []
+    Energy_yearly = []
+    ESS_capacity_year = 0 #Starts with zero eneryg in the storage
+    
+    for year in range(1,11): # starts at year 1 and includes year 10
+        
+        Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
+                                        Energy_hourly_cost=Energy_hourly_cost,
+                                        Average_median_cost_day=Average_median_cost_day,
+                                        Energy_hourly_use=Energy_hourly_use,
+                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = year, ESS_capacity_prev_year= ESS_capacity_year)
+    
+                
+        #This calculates the cost of buying and using the ESS storage, as well as the profits of sell energy from it, and inputs that into an array for each year.
+        #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
+        New_schedule = Schedule[0]
+        ESS_capacity_year += Schedule[1]  #Inputs the preveious years ess capacity to next years
+        Cost_yearly.append(fun.Cost_yearly_LCOS(schedule_load = New_schedule[:,0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
+                             Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost, Variable_O_and_M_cost = Variable_ESS_O_and_M_cost))
+        
+        Energy_yearly.append(np.sum(New_schedule[:,1]))
+
+    fitness = fun.Fittnes_LCOS(discount_rate = Discount_rate, CAPEX = CAPEX, Yearly_cost = Cost_yearly, Yearly_energy_out = Energy_yearly)
+    return fitness
+
 
 def callback_gen(ga_instance):
     print("Generation : ", ga_instance.generations_completed)
@@ -55,35 +93,35 @@ def callback_gen(ga_instance):
 
 ### --------Preparing other varuables---------
 
-num_generations = 5
-num_parents_mating = 2
-fitness_function = fitness_func
-sol_per_pop = 10 #Number of solutions per population
-init_range_low = 0
-init_range_high = 100
+num_generations = 20
+num_parents_mating = 10
+fitness_function = fitness_func_LCOS   #CHANGE BETWEEN LCOS OR NPV AS FITNESS FUNCTION
+sol_per_pop = 100 #Number of solutions per population
+init_range_low = 1
+init_range_high = 2000
 
-parent_selection_type = "sss"
+parent_selection_type = "rank"
 keep_parents = 1
 
-crossover_type = "single_point"
+crossover_type = "uniform"
+crossover_probability = 0.8
 
 mutation_type = "random"
-mutation_percent_genes = 5
+mutation_probability=0.1 # 10 percent chance of mutaiton
+gene_space = {'low': 1, 'high': 2000}#np.array([range(1, 2000), range(1, 2000)]) 
 
-gene_space = np.array([range(0, 1000), range(0, 1000)]) 
-
-Battery_size = list(range(1, 101))  # kWh
-Battery_power = list(range(1, 101))  # kW
-functions_inputs = np.array(Battery_power)
 
 #---------------------------------------------
 
 #-----------Set up ga-------------
 ga_instance = pygad.GA(num_generations=num_generations,
+                       # initial_population=([[1,1],[2,2]]),
+                       allow_duplicate_genes= True,
                        num_parents_mating=num_parents_mating,
                        fitness_func=fitness_function,
                        sol_per_pop=sol_per_pop,
                        num_genes=2,
+                       gene_type = int,
                        init_range_low=init_range_low,
                        init_range_high=init_range_high,
                        parent_selection_type=parent_selection_type,
@@ -91,9 +129,10 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        # callback_generation=callback_gen,
                        crossover_type=crossover_type,
                        mutation_type=mutation_type,
-                       mutation_percent_genes=mutation_percent_genes,
+                       mutation_probability = mutation_probability,
                        gene_space=gene_space,
-                       gene_type = int)
+                       #stop_criteria = "saturate_7",
+                       save_solutions=True) #Stop the algorithm if the same fitness value is given for 5 consectuive generations
 
 
 
@@ -122,7 +161,6 @@ power_load_59 = []
 for i in El_data_59:
     power_load_59.append(i/1000)  # in kWh
 
-power_load_59 = np.array(power_load_59)
 # --------------------------------------------------------------------------
 
 
@@ -131,25 +169,22 @@ power_load_59 = np.array(power_load_59)
 
 Energy_hourly_cost = np.array(El_cost_year)
 Average_median_cost_day = np.array(El_cost_average_day)
-Energy_hourly_use = power_load_59
+Energy_hourly_use = np.array(power_load_59)
 ESS_charge_eff = 0.9
 ESS_discharge_eff = 0.9
 
 
-# For schedule the matrix containing the batterys different power/capacity:
-
-Battery_size = list(range(0, 101))  # kWh
-Battery_power = list(range(0, 101))  # kW
-
 # Important to note that the maximum SoC for the battery is calculated in the schdule function
 # Only import is the Total max size that is also used for calculating the cost
 
+
 # ------For NPV/max inputs -------------
 Lifetime_battery = 10  # in years
-interest_rate = 0.07  # 7 percent
-ESS_capacity_cost = 10  # in pound per kWh
-ESS_power_cost = 2  # in pound per kW
-ESS_O_and_M_cost = 1  # in Pound per kWh
+interest_rate = 0.08  # 8 percent
+ESS_capacity_cost = 448   # in dollar per kWh (CAPEX) all cost included
+ESS_power_cost = 1793  # in dollar per kW (all cost included)
+Fixed_ESS_O_and_M_cost = 4.4  # in dollar per kWh-year
+Variable_ESS_O_and_M_cost = 0.5125 # in dollar per MWh-year
 Discount_rate = 0.08 #8 percent
 
 
@@ -159,10 +194,11 @@ ga_instance.run()
 end = time.time()
 
 ga_instance.plot_fitness()
+ga_instance.plot_genes()
 
 solution, solution_fitness, solution_idx = ga_instance.best_solution()
 print("Parameters of the best solution : {solution}".format(solution=solution))
-print("Fitness value of the best solution = {solution_fitness}".format(solution_fitness=solution_fitness))
+print("Fitness value of the best solution = {solution_fitness}".format(solution_fitness=-solution_fitness))
 print("Index of the best solution : {solution_idx}".format(solution_idx=solution_idx))
 
 print(abs(start-end))

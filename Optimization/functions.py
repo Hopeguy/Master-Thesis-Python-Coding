@@ -9,6 +9,7 @@ import numpy as np
 import numpy_financial as npf
 
 
+
 def ESS_schedule(ESS_capacity_size, ESS_power,
                  Energy_hourly_cost, Average_median_cost_day,
                  Energy_hourly_use, ESS_discharge_eff, ESS_charge_eff, Year, ESS_capacity_prev_year):
@@ -114,14 +115,13 @@ def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
        cost_intreset += c/((1+discount_rate)**(year+1)) #as the enumerate counting start at 0, we add 1, at year zero we only have CAPEX
        
        
-       
     energy_interset = 0
     for year, w in enumerate(Yearly_energy_out):
        energy_interset += w/((1+discount_rate)**(year+1))
 
     LCOS = (CAPEX + cost_intreset)/energy_interset
     
-    return -LCOS
+    return LCOS
 
 def Fitness_NPV(discount_rate, cashflows):
     """
@@ -153,4 +153,3 @@ def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and
     cost_yearly = cost_charge + cost_o_and_m  #This is the total cashflow after a year with all calculations included
    
     return cost_yearly
-

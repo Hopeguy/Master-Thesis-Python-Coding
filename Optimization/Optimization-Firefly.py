@@ -1,37 +1,40 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Apr  1 14:46:11 2022
+Created on Thu Apr  7 16:11:41 2022
 
 @author: jocke
 """
 
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 17 09:55:42 2022
 
-@author: jocke
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 10 10:39:23 2022
-
-@author: jocke
-"""
+import SwarmPackagePy
+from SwarmPackagePy import testFunctions as tf
+from SwarmPackagePy import animation, animation3D
 import pandas as pd
 import numpy as np
 import numpy_financial as npf
 import functions as fun
 import time
-import pygad
+import fa
+
+# start = time.time()
+
+# alh = SwarmPackagePy.fa(20, tf.sphere_function, -10, 10, 2, 20,
+#                          csi = 1, psi =  1, alpha0 = 1,
+#                           alpha1 = 0.1, norm0 = 0, norm1 = 0.1)
+
+
+# animation(alh.get_agents(), tf.sphere_function, -10, 10)
+# animation3D(alh.get_agents(), tf.sphere_function, -10, 10)
+# end = time.time()
+
+# print(abs(start-end))
+
 
 
 def fitness_func_NPV(solution, solution_idx):
     """
     Returns the NPV value (used as fitness value in GA)
     """
-    
-    
 
     ESS_capacity, ESS_power = solution[0], solution[1]
     
@@ -57,8 +60,7 @@ def fitness_func_NPV(solution, solution_idx):
     return fitness
 
 
-def fitness_func_LCOS(solution, solution_idx):
-    
+def fitness_func_LCOS(solution):
     ESS_capacity, ESS_power = solution[0], solution[1]
     CAPEX = ((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost)) 
     Cost_yearly = []
@@ -84,60 +86,9 @@ def fitness_func_LCOS(solution, solution_idx):
         Energy_yearly.append(np.sum(New_schedule[:,1]))
 
     fitness = fun.Fittnes_LCOS(discount_rate = Discount_rate, CAPEX = CAPEX, Yearly_cost = Cost_yearly, Yearly_energy_out = Energy_yearly)
-    return -fitness #negative as the function want to maximize but we want the lowest value for LCOS
+    return fitness
 
-
-def callback_gen(ga_instance):
-    print("Generation : ", ga_instance.generations_completed)
-    print("Fitness of the best solution :", ga_instance.best_solution()[1])
-
-### --------Preparing other varuables---------
-
-
-fitness_function = fitness_func_LCOS   #CHANGE BETWEEN LCOS OR NPV AS FITNESS FUNCTION
-
-num_generations = 20       #number of generation to run the algorithm
-sol_per_pop = 30           #Number of solutions per population
-num_parents_mating = int(sol_per_pop/10)     #number of solutions that will be mating (10% of total solutions used each generation)
-init_range_low = 1          #lowest value starting solutions can take
-init_range_high = 2000      #highest value starting solutions can take
-
-parent_selection_type = "rank"      #Method choice for how to pick parent, can be: [sss, rws, sus, rank, random, tournament]
-keep_parents = -1       #Keeps all parents into the next generation (this is in order to not forget good solutions)
-
-crossover_type = "uniform"      #method to crossover the genetics between the two parents, can be [singe_point, two_points, uniform, scattered, ]
-crossover_probability = 1     #How likely it is for a parent to do a crossover, 0.8 is equal to 80%
-
-mutation_type = "random"        #what operation the mutation will take, can be [random, swap, adaptive]
-mutation_probability=0.1        # 10 percent chance of mutation operation to happen for a solution
-gene_space = {'low': 1, 'high': 2000}#np.array([range(1, 2000), range(1, 2000)]) 
-
-
-#---------------------------------------------
-
-#-----------Set up ga-------------
-ga_instance = pygad.GA(num_generations=num_generations,
-                       allow_duplicate_genes= True,
-                       num_parents_mating=num_parents_mating,
-                       fitness_func=fitness_function,
-                       sol_per_pop=sol_per_pop,
-                       num_genes=2,
-                       gene_type = int,
-                       init_range_low=init_range_low,
-                       init_range_high=init_range_high,
-                       parent_selection_type=parent_selection_type,
-                       keep_parents=keep_parents,
-                       # callback_generation=callback_gen,
-                       crossover_type=crossover_type,
-                       mutation_type=mutation_type,
-                       mutation_probability = mutation_probability,
-                       gene_space=gene_space,
-                       #stop_criteria = "saturate_7",    #Stop the algorithm if the same fitness value is given for 7 consectuive generations
-                       save_solutions=True) 
-
-
-
-### Input values for solution matrix ###
+#-------------------------------------------------------end of functions------------------------
 
 
 # ----------Gets the average cost for each day, and the hourly cost at each hour during the year--------
@@ -189,17 +140,31 @@ Variable_ESS_O_and_M_cost = 0.5125 # in dollar per MWh-year
 Discount_rate = 0.08 #8 percent
 
 
-start = time.time()
-ga_instance.run()
+#------------Setup of parameters for FF algorithm------------
+
+n = 7   #number of agents (fireflies)
+fitness_function = fitness_func_LCOS        #fitness function to be used
+lb = 1  #lower bound of search space (plot axis)
+ub = 1000 #Higher bound of search space (plot axis)
+dimensions = 2 #search space dimension (for us 2 one for ESS capcity and one for ESS power)
+iteration = 20  #number of iterations the algorithm will run
+
+
+
+csi = 1     #mutal attraction value
+psi = 1     #Light absoprtion coefficent
+alpha0 = 1   #initial value of the free randomization parameter alpha
+alpha1 = 0.01 #final value of the free randomization parameter alpha
+norm0 = 1   #first parameter for a normal (Gaussian) distribution 
+norm1 = 5  #second parameter for a normal (Gaussian) distribution #as we are looking at ints these are not normal gassuian
+
+#-----------set up FF algorithm----------
+start = time.time() 
+alh = fa.fa(n = n, function = fitness_function, lb = lb, ub = ub, dimension = dimensions,
+                         iteration = iteration, csi = csi, psi =  psi, alpha0 = alpha0,
+                        alpha1 = alpha1, norm0 = norm0, norm1 = norm1)
 
 end = time.time()
-
-solution, solution_fitness, solution_idx = ga_instance.best_solution()
-print("Parameters of the best solution : {solution}".format(solution=solution))
-print("Fitness value of the best solution = {solution_fitness}".format(solution_fitness=-solution_fitness))
-print("Index of the best solution : {solution_idx}".format(solution_idx=solution_idx))
-
-print(abs(start-end))
-
-ga_instance.plot_fitness()
-ga_instance.plot_genes()
+print("here are the agents, with best fittness", alh.get_Gbest())
+print("fitness value of bes solution: ", fitness_func_LCOS(alh.get_Gbest()))
+print("Time to run optimization: ", abs(start-end))

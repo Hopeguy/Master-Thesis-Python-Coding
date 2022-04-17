@@ -31,7 +31,7 @@ import fa
 
 
 
-def fitness_func_NPV(solution, solution_idx):
+def fitness_func_NPV(solution):
     """
     Returns the NPV value (used as fitness value in GA)
     """
@@ -99,19 +99,19 @@ El_cost_year = []
 El_cost_average_day = []
 for i in range(365):
     for k in Electricity_price_read_oslo[i][0:24]:
-        El_cost_year.append(k)
-    El_cost_average_day.append(Electricity_price_read_oslo[i][24])
+        El_cost_year.append(k/1000)          #Prices in Euro/Kwh, by dividing by 1000
+    El_cost_average_day.append((Electricity_price_read_oslo[i][24])/1000)  #Prices in Euro/kwh that is why we are dividing by 1000
 
 # -------------Read load data for each hour of a year of house 59---------
 El_data_read = pd.read_csv("home59_hall687_sensor1506c1508_electric-mains_electric-combined.csv",
                            header=None)
 
-# Average W used for that hour (giving the Wh) from second of january
+# Average W used for that hour (giving the Wh) from second of january 2017
 El_data_59 = El_data_read[1][2038:8760+2038]
 
 power_load_59 = []
 for i in El_data_59:
-    power_load_59.append(i/1000)  # in kWh
+    power_load_59.append(i/1000)  # diveide by 1000 to get it in kWh
 
 # --------------------------------------------------------------------------
 
@@ -119,8 +119,8 @@ for i in El_data_59:
 # ---------------Input values (non changable)---------------------------------------'
 # ------For Schedule inputs-----------
 
-Energy_hourly_cost = np.array(El_cost_year)
-Average_median_cost_day = np.array(El_cost_average_day)
+Energy_hourly_cost = np.array(El_cost_year)     #Prices in Euro/kWh
+Average_median_cost_day = np.array(El_cost_average_day) 
 Energy_hourly_use = np.array(power_load_59)
 ESS_charge_eff = 0.9
 ESS_discharge_eff = 0.9
@@ -142,19 +142,19 @@ Discount_rate = 0.08 #8 percent
 
 #------------Setup of parameters for FF algorithm------------
 
-n = 7   #number of agents (fireflies)
-fitness_function = fitness_func_LCOS        #fitness function to be used
+n = 5  #number of agents (fireflies)
+fitness_function = fitness_func_LCOS       #fitness function to be used
 lb = 1  #lower bound of search space (plot axis)
 ub = 1000 #Higher bound of search space (plot axis)
 dimensions = 2 #search space dimension (for us 2 one for ESS capcity and one for ESS power)
-iteration = 20  #number of iterations the algorithm will run
+iteration = 10  #number of iterations the algorithm will run
 
 
 
 csi = 1     #mutal attraction value
-psi = 1     #Light absoprtion coefficent
-alpha0 = 1   #initial value of the free randomization parameter alpha
-alpha1 = 0.01 #final value of the free randomization parameter alpha
+psi = 0.7   #Light absoprtion coefficent
+alpha0 = 1   #initial value of the free randomization parameter alpha what alpha starts on iteration 1
+alpha1 = 0.001 #final value of the free randomization parameter alpha what alpha is going to for a value exponentionally depening on iteration t
 norm0 = 1   #first parameter for a normal (Gaussian) distribution 
 norm1 = 5  #second parameter for a normal (Gaussian) distribution #as we are looking at ints these are not normal gassuian
 
@@ -166,5 +166,5 @@ alh = fa.fa(n = n, function = fitness_function, lb = lb, ub = ub, dimension = di
 
 end = time.time()
 print("here are the agents, with best fittness", alh.get_Gbest())
-print("fitness value of bes solution: ", fitness_func_LCOS(alh.get_Gbest()))
+print("fitness value of bes solution: ", fitness_function(alh.get_Gbest()))
 print("Time to run optimization: ", abs(start-end))

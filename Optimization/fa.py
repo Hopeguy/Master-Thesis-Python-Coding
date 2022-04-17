@@ -40,42 +40,49 @@ class fa(intelligence.sw):
         
         Pbest = self.__agents[np.array([function(x) for x in self.__agents]).argmin()] #Returns the solution with the lowest fittness score
         Gbest = copy.deepcopy(Pbest) # takes the best (lowest) fitness value and assigne it to Gbest variable
-    
+        fitness = [function(x) for x in self.__agents]
+
+
         for t in range(iteration):      #Loop that goes equalt to number of iterations
             
-            alpha = alpha1 + (alpha0 - alpha1) * exp(-t)    #Alpha is randomization parameter, that becomes smaller the more iterations
+            alpha = alpha1 + (alpha0 - alpha1) * (exp(-t/4))    #Alpha is randomization parameter, that becomes smaller the more iterations
             #print("alpha value: ",alpha, " iteration: ", t)   #Too see how alpha changes each iteration
             for i in range(n): # For each agent we go into the for loop
-                fitness = [function(x) for x in self.__agents] #Updates the fitness for each agent after after agent "i" have been moved by all other agents
-                #This could probably be better written as it needs to redo all agents when only one have been edited [optimize so it only edits in fitness list the one that have changed pos]
+                
+                #print(fitness, "fitness list")
+                #print(self.__agents, "Agents")
+                #print(self.__agents[i], "Ith Agent")
                 for j in range(n): #each agent are compared to each other agent
-                    if fitness[i] > fitness[j]:
+                    if fitness[i] > fitness[j]: #if agent i are higher (we want to minimize) we move agent i towards agent j with move function 
                         
-                        self.__move(i, j, t, csi, psi, alpha, dimension, ub, lb)
+                        self.__move(i, j, t, csi, psi, alpha, dimension, ub, lb) #Calls move function an changes the agent i position depending on agent j position
                         
                                     
-                    else:
+                    else: #If fitness of I is higher J then it moves randomly as we are always only looking at each pair of fireflies
                         
                         rand_value = (alpha * abs(ub-lb) * (np.random.rand(1,dimension) - 0.5))
-                        rand_fill = []
-                        for v in rand_value:
-                            for w in v:
-                                rand_fill.append(w)
+                        rand_fill = np.zeros(2)
+                    
+                        for v in rand_value:        #to create array to add the random step size to the position
+                            for count, w in enumerate(v):
+                                
+                                rand_fill[count] = w
                         
-                        self.__agents[i] = list(map(lambda a,b: a+b, list(map(int, rand_fill)), self.__agents[i])) 
+                        self.__agents[i] = list(map(int, rand_fill)) + self.__agents[i] #adds the randomize step size to the poistion of agent i
+
+                    fitness[i] = function(self.__agents[i])  #after a move on agent[i] we calculate a new fitness value, to compare with other agents
                         
-            
             self.__agents = np.clip(self.__agents, lb, ub)  #Checks that all agents are in the required bound, and change them to the highest or lowest if not (lb, or ub)
             
             self._points(self.__agents)
             
-            Pbest = self.__agents[np.array([function(x) for x in self.__agents]).argmin()]
+            Pbest = self.__agents[np.array(fitness).argmin()] #sets the Pbest of the iteration to the agent with the smallest value #[function(x) for x in self.__agents]
             #print("Pbest before we compare with Gbest", Pbest)
             if function(Pbest) < function(Gbest):
                 
                 Gbest = copy.deepcopy(Pbest)
 
-            print(Pbest, "best solution for iteration: ", t, "With fitness value: ", function(Pbest))    
+            print(Pbest, "best solution for iteration: ", t, "With fitness value: ", function(Pbest), "with alpha being: ", alpha)    
         self._set_Gbest(Gbest)
 
     def __move(self, i, j, t, csi, psi, alpha, dimension, ub, lb):
@@ -88,8 +95,5 @@ class fa(intelligence.sw):
         for v in rand_value_move:
             for w in v:
                 rand_fill_move.append(w)
-        attract_list = list(map(lambda a,b: a+b, list(map(int, rand_fill_move)), self.__agents[i]))
-        beta_walk = beta * (self.__agents[i] - self.__agents[j])
-        self.__agents[i] = list(map(lambda a,b: a+b, attract_list, beta_walk))
-
+        self.__agents[i] = self.__agents[i] + list(map(int, rand_fill_move)) + (beta * (self.__agents[i] - self.__agents[j]))
             

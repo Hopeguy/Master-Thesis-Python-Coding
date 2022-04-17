@@ -97,12 +97,12 @@ def callback_gen(ga_instance):
 fitness_function = fitness_func_LCOS   #CHANGE BETWEEN LCOS OR NPV AS FITNESS FUNCTION
 
 num_generations = 20       #number of generation to run the algorithm
-sol_per_pop = 30           #Number of solutions per population
+sol_per_pop = 20           #Number of solutions per population
 num_parents_mating = int(sol_per_pop/10)     #number of solutions that will be mating (10% of total solutions used each generation)
 init_range_low = 1          #lowest value starting solutions can take
 init_range_high = 2000      #highest value starting solutions can take
 
-parent_selection_type = "rank"      #Method choice for how to pick parent, can be: [sss, rws, sus, rank, random, tournament]
+parent_selection_type = "sss"      #Method choice for how to pick parent, can be: [sss, rws, sus, rank, random, tournament]
 keep_parents = -1       #Keeps all parents into the next generation (this is in order to not forget good solutions)
 
 crossover_type = "uniform"      #method to crossover the genetics between the two parents, can be [singe_point, two_points, uniform, scattered, ]
@@ -148,8 +148,8 @@ El_cost_year = []
 El_cost_average_day = []
 for i in range(365):
     for k in Electricity_price_read_oslo[i][0:24]:
-        El_cost_year.append(k)
-    El_cost_average_day.append(Electricity_price_read_oslo[i][24])
+        El_cost_year.append(k/1000)
+    El_cost_average_day.append((Electricity_price_read_oslo[i][24])/1000)
 
 # -------------Read load data for each hour of a year of house 59---------
 El_data_read = pd.read_csv("home59_hall687_sensor1506c1508_electric-mains_electric-combined.csv",
@@ -160,7 +160,7 @@ El_data_59 = El_data_read[1][2038:8760+2038]
 
 power_load_59 = []
 for i in El_data_59:
-    power_load_59.append(i/1000)  # in kWh
+    power_load_59.append(i/1000)  # in kWh devide with 1000 to get it in kWh
 
 # --------------------------------------------------------------------------
 

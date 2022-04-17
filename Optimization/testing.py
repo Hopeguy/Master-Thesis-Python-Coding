@@ -3,7 +3,7 @@ import pandas as pd
 import functions as fun
 import time
 
-stuff = np.random.normal(0,0.1,2)
+""" stuff = np.random.normal(0,0.1,2)
 stuff2 = np.array(stuff).argmax()  #Argmin returns the position of the lowest number in a array, argmax returns the maximum
 print(stuff)
 print(stuff2)
@@ -28,10 +28,10 @@ things5 = list(map(lambda a,b: a+b, thing3, thing4))
 print(thing3)
 print(things5)
 print(thing4 + things2)
+ """
 
 
-
-def fitness_func_LCOS(solution, solution_idx):
+def fitness_func_LCOS(solution):
     
     ESS_capacity, ESS_power = solution[0], solution[1]
     CAPEX = ((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost)) 
@@ -58,9 +58,37 @@ def fitness_func_LCOS(solution, solution_idx):
         Energy_yearly.append(np.sum(New_schedule[:,1]))
 
     fitness = fun.Fittnes_LCOS(discount_rate = Discount_rate, CAPEX = CAPEX, Yearly_cost = Cost_yearly, Yearly_energy_out = Energy_yearly)
-    return -fitness #negative as the function want to maximize but we want the lowest value for LCOS
+    return fitness #
 
 
+
+def fitness_func_NPV(solution):
+    """
+    Returns the NPV value (used as fitness value in GA)
+    """
+
+    ESS_capacity, ESS_power = solution[0], solution[1]
+    
+    cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost))] #First Year is just capex cost and negative as it is a cost
+    ESS_capacity_year = 0 #Starts with zero eneryg in the storage
+    for year in range(1,11): # starts at year 1 and includes year 10
+        
+        Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
+                                        Energy_hourly_cost=Energy_hourly_cost,
+                                        Average_median_cost_day=Average_median_cost_day,
+                                        Energy_hourly_use=Energy_hourly_use,
+                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = year, ESS_capacity_prev_year= ESS_capacity_year)
+    
+                
+        #This calculates the cost of buying and using the ESS storage, as well as the profits of sell energy from it, and inputs that into an array for each year.
+        #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
+        New_schedule = Schedule[0]
+        ESS_capacity_year += Schedule[1]  #Inputs the preveious years ess capacity to next years
+        cashflow_each_year.append(fun.cashflow_yearly_NPV(schedule_load = New_schedule[:, 0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
+                                                          Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost))
+
+    fitness = fun.Fitness_NPV(discount_rate = Discount_rate, cashflows = cashflow_each_year)
+    return fitness
 
 
     
@@ -84,7 +112,7 @@ El_data_59 = El_data_read[1][2038:8760+2038]
 
 power_load_59 = []
 for i in El_data_59:
-    power_load_59.append(i/1000)  # in kWh
+    power_load_59.append((i/1000)*3)  # in kWh
 
 # --------------------------------------------------------------------------
 
@@ -116,33 +144,21 @@ Discount_rate = 0.08 #8 percent
 
 #Testing all values:
 start_2 = time.time()
-Battery_capacity = list(range(0, 131))  # kWh Trying it out with smaller sample first to look at time
-Battery_power = list(range(0, 131))
+Battery_capacity = list(range(9, 21))  # kWh Trying it out with smaller sample first to look at time
+Battery_power = list(range(9, 21))
 
 All_solutions = []  
 gen = 0
+
 for cap in Battery_capacity:
     for pwr in Battery_power:
-        solution = [cap, pwr, gen]
-        Schedule = fun.ESS_schedule(ESS_capacity_size=cap, ESS_power=pwr,
-                            Energy_hourly_cost=Energy_hourly_cost,
-                            Average_median_cost_day=Average_median_cost_day,
-                            Energy_hourly_use=Energy_hourly_use,
-                            ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff)
-        
-        solution.append(Fitness_max_saved(Energy_hourly_use=Energy_hourly_use,
-                                          schedule=Schedule,
-                                          Energy_hourly_cost=Energy_hourly_cost,
-                                          ESS_power= pwr,
-                                          ESS_capacity= cap,
-                                          ESS_capacity_cost=ESS_capacity_cost,
-                                          ESS_power_cost=ESS_power_cost,
-                                          ESS_O_and_M_cost=ESS_O_and_M_cost,
-                                          Base_case_cost=Base_case_cost))
+        fitness = fitness_func_LCOS([cap, pwr])
+        #print(fitness)
+        solution = [cap, pwr, fitness, gen]
         All_solutions.append(solution)
         gen += 1
  
-All_solutions.sort(key=lambda i: i[3], reverse=True)        
+All_solutions.sort(key=lambda i: i[2], reverse=False)        
 
 end_2 = time.time()
-print(All_solutions, abs(start_2-end_2))
+print(All_solutions[1], All_solutions[2], abs(start_2-end_2))

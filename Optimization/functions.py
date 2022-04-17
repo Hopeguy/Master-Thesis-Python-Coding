@@ -16,8 +16,8 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     """
     Where:
     ESS_power in kW;
-    Energy_hourly cost in pence and all hours of a year (list of 8760 hours);
-    Average_median_cost_day in pence for each day of a year (list if 365 days);
+    Energy_hourly cost in euro and all hours of a year (list of 8760 hours);
+    Average_median_cost_day in euro for each day of a year (list if 365 days);
     Energy_hourly_use in kWh in load demand from user for each hour in a year (list of 8760 hours)
     ESS_charge_eff and ESS_discharge_eff is given on a scale 0-1 where 1 is 100%
     
@@ -34,10 +34,10 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     #Assuming linear factors (find source for this later)
     #For battery assume that after 10 years capacity is only 80% of maximum (capacity = full capacity*(year*-0,02 + 1)
     
-    ESS_capacity_size = ESS_capacity_size*((Year*(-0.02))+1)
+    ESS_capacity_size = ESS_capacity_size*((Year*(-0.02))+1) #Reduction in energy capacity after a year of usage
     Energy_hourly_cost = Energy_hourly_cost*((Year*0.02)+1)  #Increase energy cost by 2% each year
     Average_median_cost_day = Average_median_cost_day*((Year*0.02)+1) #Increase energy cost by 2% each year
-    Energy_hourly_use = Energy_hourly_use*((Year*0.02)+1)  #Increase energy use by 2% each year, this is added to each hour element.
+    Energy_hourly_use = Energy_hourly_use*((Year*-0.0227)+1)  #Electricity 2.27% and thermal 1.8% decrease yearly.
 
     # States that the max SoC is 90% of max capacity
     ESS_capacity_max = ESS_capacity_size*0.9
@@ -49,11 +49,11 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     ESS_capacity = ESS_capacity_prev_year  # Starts at what value one inputs, but should be that it saved the energy from last year.
     hour_year = 0
     
-
+    
     
     
     for day_averge_cost in Average_median_cost_day:
-
+        
         for hour_day in range(1, 25):
 
             # Checks if the average cost is higher than current (hourly) (We want to charge ESS)

@@ -30,27 +30,29 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     # for ESS capcity is changed for a max and min value in this function
 
     
-    #Depending on the year, capacity of ESS will degrade, and cost/load demand will increase
-    #Assuming linear factors (find source for this later)
-    #For battery assume that after 10 years capacity is only 80% of maximum (capacity = full capacity*(year*-0,02 + 1)
+    #Depending on the year, capacity of ESS will degrade
+    #cost/load demand wont increase/decrease over the years as we are looking into a small house/set of houses (assumption)
+
+    ESS_capacity_size = ESS_capacity_size*((Year*(-0.01612))+1) #a reduction of 1,612% each year. totaling in 15% at year 10
+    #Energy_hourly_cost = Energy_hourly_cost*((Year*0.02)+1)  #Increase energy cost by 2% each year (from calculations no future energy price increase can be seen)
+    #Average_median_cost_day = Average_median_cost_day*((Year*0.02)+1) #Increase energy cost by 2% each year (from calculations no future energy price increase can be seen)
+    Energy_hourly_use = Energy_hourly_use*((Year*-0.0227)+1)  #Electricity 2.27% and thermal 1.8% decrease yearly. %This might not be interesting and could be excluded as a single house wont change for a single home
+
     
-    ESS_capacity_size = ESS_capacity_size*((Year*(-0.02))+1) #Reduction in energy capacity after a year of usage
-    Energy_hourly_cost = Energy_hourly_cost*((Year*0.02)+1)  #Increase energy cost by 2% each year
-    Average_median_cost_day = Average_median_cost_day*((Year*0.02)+1) #Increase energy cost by 2% each year
-    Energy_hourly_use = Energy_hourly_use*((Year*-0.0227)+1)  #Electricity 2.27% and thermal 1.8% decrease yearly.
 
     # States that the max SoC is 90% of max capacity
-    ESS_capacity_max = ESS_capacity_size*0.9
-    # States that the min SoC is 10% of max capacity #source on this later
-    ESS_capacity_min = ESS_capacity_size*0.1
+    ESS_capacity_max = ESS_capacity_size*1 #Moongrid source 2020 #read section 3.5
+    # States that the min SoC is 10% of max capacity #source on this later \cite timmermans batteries 2016
+    ESS_capacity_min = ESS_capacity_size*0.2 #80% DoD read seciton 3.5, source moongrid 2020
 
     # Matrix to store Capacity and power input/output for each hour.
     schedule_charge_discharge = np.zeros((8760, 2))
-    ESS_capacity = ESS_capacity_prev_year  # Starts at what value one inputs, but should be that it saved the energy from last year.
+    if ESS_capacity_size < ESS_capacity_prev_year: # Sets the starting capacity in the ESS to what was last year, and if the max capacity have become smaller than what was stored last year it sets it to maximum.
+        ESS_capacity = ESS_capacity_size
+    else:
+        ESS_capacity = ESS_capacity_prev_year
+    
     hour_year = 0
-    
-    
-    
     
     for day_averge_cost in Average_median_cost_day:
         
@@ -67,6 +69,7 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                         schedule_charge_discharge[hour_year][0] = ESS_power
                     else:
                         ESS_capacity += (ESS_capacity_max - ESS_capacity)*ESS_charge_eff
+                        
                         # This is when the ESS storage is close to be full, below max rated ESS power charge
                         schedule_charge_discharge[hour_year][0] = (ESS_capacity_max - ESS_capacity)
 
@@ -82,6 +85,7 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                             schedule_charge_discharge[hour_year][1] = ESS_power*ESS_discharge_eff
                         else:
                             ESS_capacity = ESS_capacity_min
+                            
                             # This case is when we have less than maximum power, and then uses up the last energy availbale in the ESS
                             schedule_charge_discharge[hour_year][1] = ESS_capacity*ESS_discharge_eff
                     # When the powered used by consumer is less then the maximum power by the ESS, we here then use the maximu we can but that is less than ESS power max
@@ -93,35 +97,36 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                         # This is the case when we dont enough energy to discharge from the ESS so we take all we can take from this hour.
                         elif ESS_capacity < Energy_hourly_use[hour_year]:
                             ESS_capacity = ESS_capacity_min
+                         
                             schedule_charge_discharge[hour_year][1] = ESS_capacity*ESS_discharge_eff
 
             hour_year += 1  # At what hour we are in during the year
 
     # Returns a 8760x2 matrix where the first column is the charge schedule, and the second is the discharge scehdule, third is the capacity at the end of the year
     #The discharge and charge is how much kWh that is charged or discharge at each hour
+    #print(Cycle_counter)
     return np.array(schedule_charge_discharge), ESS_capacity
 
 # -------------------------------------------------------
 
 def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
     """'
-    Where intreset rate is in 0.08 for 8%
-    CAPEX is in EURO
+    Where discount rate is in 0.08 for 8%
+    CAPEX is in EURO 2022
     Yearly cost is an array with each years total cost (O&M, charge)
     Yearly energy out is an array with each year total output from ESS
     """
-    cost_intreset = 0
+    cost_intrest = 0
     for year, c in enumerate(Yearly_cost):
-       cost_intreset += c/((1+discount_rate)**(year+1)) #as the enumerate counting start at 0, we add 1, at year zero we only have CAPEX
+       cost_intrest += c/((1+discount_rate)**(year+1)) #as the enumerate counting start at 0, we add 1, at year zero we only have CAPEX
        
        
-    energy_interset = 0
+    energy_intrest = 0
     for year, w in enumerate(Yearly_energy_out):
-       energy_interset += w/((1+discount_rate)**(year+1))
+       energy_intrest += w/((1+discount_rate)**(year+1))
 
-    LCOS = (CAPEX + cost_intreset)/energy_interset
-    
-    return LCOS
+    LCOS = (CAPEX + cost_intrest)/energy_intrest
+    return LCOS #returns LCOS in Euro/kWh
 
 def Fitness_NPV(discount_rate, cashflows):
     """
@@ -134,22 +139,21 @@ def Fitness_NPV(discount_rate, cashflows):
 
 
 
-def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost): #Gives the profits after all yearly costs and profits
-    
+def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power): #Gives the profits after all yearly costs and profits
     
     profit = np.sum(schedule_discharge*demand_cost)
     cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m = np.sum(schedule_discharge*Fixed_O_and_M_cost) + (np.sum(schedule_discharge*Variable_O_and_M_cost)/1000)  #Dependent on year or hourly use per year. 
+    cost_o_and_m = (ESS_power*Fixed_O_and_M_cost) + np.sum(schedule_discharge*Variable_O_and_M_cost)  #Dependent on year or hourly use per year. 
     
     cashflow_total =  profit - cost_charge - cost_o_and_m  #This is the total cashflow after a year with all calculations included
     return cashflow_total
 
-def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost): #Gives the profits after all yearly costs and profits
+def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power): #Gives the profits after all yearly costs and profits
     
 
     cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m = np.sum(schedule_discharge*Fixed_O_and_M_cost) + (np.sum(schedule_discharge*Variable_O_and_M_cost)/1000)  #Dependent on year or hourly use per year. 
+    cost_o_and_m = (ESS_power*Fixed_O_and_M_cost) + np.sum(schedule_discharge*Variable_O_and_M_cost)  #Dependent on year or hourly use per year. 
     
-    cost_yearly = cost_charge + cost_o_and_m  #This is the total cashflow after a year with all calculations included
-   
+    cost_yearly = cost_charge + cost_o_and_m  #This is the total cashflow after a year with all parts included
+    
     return cost_yearly

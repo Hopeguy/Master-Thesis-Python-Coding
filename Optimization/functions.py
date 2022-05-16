@@ -16,6 +16,7 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     """
     Where:
     ESS_power in kW;
+    ESS_capacity = kWh
     Energy_hourly cost in euro and all hours of a year (list of 8760 hours);
     Average_median_cost_day in euro for each day of a year (list if 365 days);
     Energy_hourly_use in kWh in load demand from user for each hour in a year (list of 8760 hours)
@@ -38,7 +39,6 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     #Average_median_cost_day = Average_median_cost_day*((Year*0.02)+1) #Increase energy cost by 2% each year (from calculations no future energy price increase can be seen)
     Energy_hourly_use = Energy_hourly_use*((Year*-0.0227)+1)  #Electricity 2.27% and thermal 1.8% decrease yearly. %This might not be interesting and could be excluded as a single house wont change for a single home
 
-    
 
     # States that the max SoC is 90% of max capacity
     ESS_capacity_max = ESS_capacity_size*1 #Moongrid source 2020 #read section 3.5
@@ -104,10 +104,33 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
 
     # Returns a 8760x2 matrix where the first column is the charge schedule, and the second is the discharge scehdule, third is the capacity at the end of the year
     #The discharge and charge is how much kWh that is charged or discharge at each hour
-    #print(Cycle_counter)
+
     return np.array(schedule_charge_discharge), ESS_capacity
 
 # -------------------------------------------------------
+
+def Peak_diff(Electricty_usage_pre_schedule, Schedule):
+    """
+    Electicity_usage_pre_schedule is the electricity usage before an battery have been installed
+    Schedule is the charge and discharge schedule for that year,
+    the Value will return the peak difference for each month that then can be used as a profit for installing the Battery
+    """
+
+    New_electricity_usage_with_discharge = np.subtract(Electricty_usage_pre_schedule, Schedule[:,0]) #Schedule 0 is the discharge schedule
+    New_electricity_usage_with_discharge_and_charge = np.add(New_electricity_usage_with_discharge, Schedule[:,1]) #if we want to include the chargin also to the calculations
+
+
+    Monthly_max_pre = np.zeros(12)
+    Monthly_max_after = np.zeros(12)
+    for count in range(12):
+
+        Monthly_max_pre[count] = np.max(Electricty_usage_pre_schedule[count*730:(count+1)*730])
+        Monthly_max_after[count] = np.max(New_electricity_usage_with_discharge_and_charge[count*730:(count+1)*730])
+    
+    Monthly_peak_diff = abs(np.subtract(Monthly_max_pre, Monthly_max_after)) #subtracts the discharge and adds the charge from the pre schedule with the schedule
+    #print(Monthly_peak_diff)
+
+    return Monthly_peak_diff #Array with 12 values (on for each month of the year)
 
 def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
     """'
@@ -135,25 +158,28 @@ def Fitness_NPV(discount_rate, cashflows):
     """
     NPV = npf.npv(discount_rate, cashflows)  #numpy financial to calculate 
 
-    return NPV
+    return NPV #In Euro
 
 
 
-def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power): #Gives the profits after all yearly costs and profits
+def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power, Peak_diff, Peak_diff_cost): #Gives the profits after all yearly costs and profits
     
-    profit = np.sum(schedule_discharge*demand_cost)
-    cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m = (ESS_power*Fixed_O_and_M_cost) + np.sum(schedule_discharge*Variable_O_and_M_cost)  #Dependent on year or hourly use per year. 
-    
-    cashflow_total =  profit - cost_charge - cost_o_and_m  #This is the total cashflow after a year with all calculations included
-    return cashflow_total
+    profit_kWh = abs(np.sum(schedule_discharge*demand_cost)) #profit made from discharge of the ESS at higher electricity cost
+    profit_peak_kW = abs(np.sum(Peak_diff*Peak_diff_cost)) #profit made form peak difference monthly using the ESS instead of using only grid
+    cost_charge = abs(np.sum(schedule_load*demand_cost)) #only cost for charging the unit
+    cost_o_and_m_fixed = abs(ESS_power*Fixed_O_and_M_cost)   #Dependent on year or hourly use per year. 
+    cost_o_and_m_variable = abs(np.sum(schedule_discharge*Variable_O_and_M_cost))
+    cashflow_total =  profit_kWh + profit_peak_kW - cost_charge - cost_o_and_m_fixed - cost_o_and_m_variable #This is the total cashflow after a year with all calculations included
+    Divided_cost_profit = [profit_kWh, profit_peak_kW, (-cost_charge), (-cost_o_and_m_fixed), (-cost_o_and_m_variable), cashflow_total]
+    #print("Profit: ", profit_kWh, "Profit_peak_kW: ", profit_peak_kW, "Cost_charge: ", -cost_charge, "cost o and m: ", -cost_o_and_m_fixed, "cost o and m Variable: ", -cost_o_and_m_variable)
+    return [cashflow_total, Divided_cost_profit]
 
 def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power): #Gives the profits after all yearly costs and profits
     
 
     cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m = (ESS_power*Fixed_O_and_M_cost) + np.sum(schedule_discharge*Variable_O_and_M_cost)  #Dependent on year or hourly use per year. 
-    
-    cost_yearly = cost_charge + cost_o_and_m  #This is the total cashflow after a year with all parts included
+    cost_o_and_m_fixed = (ESS_power*Fixed_O_and_M_cost)  #Dependent on year or hourly use per year. 
+    cost_o_and_m_variable =  np.sum(schedule_discharge*Variable_O_and_M_cost)
+    cost_yearly = cost_charge + cost_o_and_m_variable + cost_o_and_m_fixed  #This is the total cashflow after a year with all parts included
     
     return cost_yearly

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import functions as fun
 import time
-import matplotlib
+import matplotlib.pyplot as plt
 
 """ stuff = np.random.normal(0,0.1,2)
 stuff2 = np.array(stuff).argmax()  #Argmin returns the position of the lowest number in a array, argmax returns the maximum
@@ -71,8 +71,8 @@ def fitness_func_NPV(solution):
     ESS_capacity, ESS_power = solution[0], solution[1]
     
     cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost))] #First Year is just capex cost and negative as it is a cost
-    ESS_capacity_year = 0 #Starts with zero eneryg in the storage
-    for year in range(1,11): # starts at year 1 and includes year 10
+    ESS_capacity_year = 0 #Starts with zero energy in the storage
+    for year in range(1,11): # starts at year 1 and includes year 10 as the lifetime of ESS is 10 years (battery) 
         
         Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
                                         Energy_hourly_cost=Energy_hourly_cost,
@@ -85,11 +85,13 @@ def fitness_func_NPV(solution):
         #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
         New_schedule = Schedule[0]
         ESS_capacity_year = Schedule[1]  #Inputs the preveious years ess capacity to next years
+        Peak_diff = fun.Peak_diff(Electricty_usage_pre_schedule = Energy_hourly_use, Schedule = Schedule[0])
         cashflow_each_year.append(fun.cashflow_yearly_NPV(schedule_load = New_schedule[:, 0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
-                                                          Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost, ESS_power = ESS_power))
+                                                        Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost,
+                                                        ESS_power = ESS_power, Peak_diff = Peak_diff, Peak_diff_cost = Peak_cost))
 
     fitness = fun.Fitness_NPV(discount_rate = Discount_rate, cashflows = cashflow_each_year)
-    return fitness
+    return fitness 
 
 
     
@@ -141,12 +143,13 @@ ESS_power_cost = 1710.2  # in Euro(2022) per kW (all cost included)
 Fixed_ESS_O_and_M_cost = 4.19  # in Euro(2022) per kW-year
 Variable_ESS_O_and_M_cost = 0.488/1000 # in Euro(2022) per kWh-year 
 Discount_rate = 0.08 #8 percent
+Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to euro: 1 euro is 1.1218 USD january 1 2022
 
 
 #Testing all values:
 start_2 = time.time()
-Battery_capacity = list(range(1, 2))  # kWh Trying it out with smaller sample first to look at time
-Battery_power = list(range(1, 2))
+Battery_capacity = list(range(1, 10))  # kWh Trying it out with smaller sample first to look at time
+Battery_power = list(range(1, 10))
 
 All_solutions = []  
 gen = 0
@@ -158,10 +161,9 @@ for cap in Battery_capacity:
         solution = [cap, pwr, fitness, gen]
         All_solutions.append(solution)
         gen += 1
+        print(solution)
  
 All_solutions.sort(key=lambda i: i[2], reverse=True)        
 
 end_2 = time.time()
 print(All_solutions[0], abs(start_2-end_2))
-
-matplotlib.plot(Energy_hourly_cost)

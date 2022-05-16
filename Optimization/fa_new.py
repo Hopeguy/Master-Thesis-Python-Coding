@@ -2,7 +2,7 @@
 from math import exp
 import numpy as np
 import intelligence
-
+#From swarmpackagePY
 
 
 class fa(intelligence.sw):
@@ -10,7 +10,7 @@ class fa(intelligence.sw):
     Firefly Algorithm
     """
 
-    def __init__(self, n, function, lb, ub, dimension, iteration, csi=1, psi=1,
+    def __init__(self, n, function, lb1, ub1, lb2, ub2, dimension, iteration, csi=1, psi=1,
                  alpha0=1, alpha1=0.1, norm0=0, norm1=0.1):
         """
         :param n: number of agents
@@ -34,11 +34,16 @@ class fa(intelligence.sw):
 
         super(fa, self).__init__()
 
-        self.__agents = np.random.uniform(lb, ub, (n, dimension))
+        ESS_capacity_start = np.random.uniform(lb1, ub1, n)
+        ESS_power_start = np.random.uniform(lb2, ub2, n) 
+        pre_prep_agents = []
+        for count in range (0, n):
+            pre_prep_agents.append([ESS_capacity_start[count], ESS_power_start[count]])
+        self.__agents = pre_prep_agents   
+            
         self._points(self.__agents)
 
-        Pbest = self.__agents[np.array([function(x)
-                                        for x in self.__agents]).argmin()]
+        Pbest = self.__agents[np.array([function(x) for x in self.__agents]).argmin()]
         Gbest = Pbest
 
         for t in range(iteration):
@@ -55,7 +60,12 @@ class fa(intelligence.sw):
                         self.__agents[i] += np.random.normal(norm0, norm1,
                                                              dimension)
 
-            self.__agents = np.clip(self.__agents, lb, ub)
+            for count1, agent in enumerate (self.__agents):
+                for count2, unit in enumerate(agent):
+                    if count2 == 0:
+                        self.__agents[count1][count2] = np.clip(unit, lb1, ub1)
+                    if count2 == 1:
+                        self.__agents[count1][count2] = np.clip(unit, lb2, ub2)
             self._points(self.__agents)
 
             Pbest = self.__agents[
@@ -72,6 +82,4 @@ class fa(intelligence.sw):
 
         self.__agents[i] = self.__agents[i] + beta * (                  #One thing is changed from the base version, it said self._agents[j] but it should be i instead of j
             self.__agents[i] - self.__agents[j]) + alpha * exp(-t) * \
-                                                   np.random.normal(norm0,
-                                                                    norm1,
-                                                                    dimension)
+                                                   np.random.normal(norm0, norm1, dimension)

@@ -1,0 +1,203 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr  7 16:11:41 2022
+
+@author: jocke
+"""
+import pandas as pd
+import numpy as np
+import numpy_financial as npf
+import functions_ELH as fun
+import time
+import fa_new
+import fa_new_different_lb_ub
+from operator import add
+
+def Electricity_heater_load(Power, Heating_load):
+    """"
+    Power in kW
+    Heating load in kWh (An array with 8760 hours)
+    Efficency set to 95% (Source needed)
+    Output is the new lower heating load that has been taken care of with the electrical heater (array of 8760 hours)
+    Electrical load from the electrical heater (array of 8760 hours)
+    """
+    
+    Efficency = 0.95 # Depending on source but assumed to be 95% (Source  "UKSupplyCurve")
+    Electricity_load = np.zeros(8760)
+    New_heating_load = np.zeros(8760)
+    for count, load in enumerate(Heating_load): #goes through the array with the load demand
+        if load < Power:                        #if the load is less then the power of the electrical heater
+            Electricity_load[count] = load/Efficency    #Electricity load is increase by the load divided by the efficency
+            New_heating_load[count] = 0                 #as the load was lower then the power zero heating load is left this hour
+        elif load > Power:
+            Electricity_load[count] = Power/Efficency   # When the load is higher than the Power of the electrical heater, the new electricty this hour is the power divided by the efficency
+            New_heating_load[count] = load - Power #The heat load this hour is the load minus the power that was removed by the electrical heater
+
+    return Electricity_load, New_heating_load
+
+def fitness_func_NPV(solution):
+    """
+    Returns the NPV value (used as fitness value in GA)
+    """
+
+    ESS_capacity, ESS_power, ELH_power = solution[0], solution[1], solution[2]
+    
+    cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost) + ELH_power*ELH_power_cost)] #First Year is just capex cost and negative as it is a cost
+    ESS_capacity_year = 0 #Starts with zero energy in the storage
+
+    Electricity_heating_load = Electricity_heater_load(Power=ELH_power, Heating_load = Heating_hourly_use) #array first is the electricity load from ELH, and second array is the new Heating load
+    Energy_hourly_use = Electricity_load + Electricity_heating_load[0] #adds the electricity load with the ELH electricity load
+
+    for year in range(1,11): # starts at year 1 and includes year 10 as the lifetime of ESS is 10 years (battery) 
+        
+        Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
+                                        Energy_hourly_cost=Energy_hourly_cost,
+                                        Average_median_cost_day=Average_median_cost_day,
+                                        Energy_hourly_use=Energy_hourly_use,
+                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = year, ESS_capacity_prev_year= ESS_capacity_year)
+    
+                
+        #This calculates the cost of buying and using the ESS storage, as well as the profits of sell energy from it, and inputs that into an array for each year.
+        #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
+        New_schedule = Schedule[0]
+        ESS_capacity_year = Schedule[1]  #Inputs the preveious years ess capacity to next years
+        Peak_diff = fun.Peak_diff(Electricty_usage_pre_schedule = Energy_hourly_use, Schedule = Schedule[0])
+        cashflow_each_year.append(fun.cashflow_yearly_NPV(schedule_load = New_schedule[:, 0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
+                                                        Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost,
+                                                        ESS_power = ESS_power,  ELH_OPEX = ELH_OPEX, ELH_power= ELH_power, Gas_cost = Gas_cost,
+                                                        Heating_demand_after_ELH = Electricity_heating_load[1], Heating_demand_pre = Heating_load, Peak_diff = Peak_diff, Peak_diff_cost = Peak_cost))
+
+    fitness = fun.Fitness_NPV(discount_rate = Discount_rate, cashflows = cashflow_each_year)
+    return -fitness #negative as the FF algo want to minimize the fitness function
+
+
+def fitness_func_LCOS(solution):
+    ESS_capacity, ESS_power, ELH_power = solution[0], solution[1], solution[2]
+    CAPEX = ((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost) + ELH_power*ELH_power_cost) 
+    Cost_yearly = []
+    Energy_yearly = []
+    ESS_capacity_year = 0 #Starts with zero energy in the storage
+    
+    Electricity_heating_load = Electricity_heater_load(Power=ELH_power, Heating_load = Heating_hourly_use) #array first is the electricity load from ELH, and second array is the new Heating load
+
+    Energy_hourly_use = np.array(Electricity_load + Electricity_heating_load[0]) #adds the electricity load with the ELH electricity load
+    for year in range(1,11): # starts at year 1 and includes year 10 as the lifetime of ESS is 10 years (battery)
+        
+        Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
+                                        Energy_hourly_cost=Energy_hourly_cost,
+                                        Average_median_cost_day=Average_median_cost_day,
+                                        Energy_hourly_use=Energy_hourly_use,
+                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = year, ESS_capacity_prev_year= ESS_capacity_year)
+    
+                
+        #This calculates the cost of buying and using the ESS storage, as well as the profits of sell energy from it, and inputs that into an array for each year.
+        #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
+        New_schedule = Schedule[0]
+        ESS_capacity_year = Schedule[1]  #Inputs the preveious years ess capacity to next years
+        Cost_yearly.append(fun.Cost_yearly_LCOS(schedule_load = New_schedule[:,0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
+                            Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost, Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, ESS_power = ESS_power,
+                            ELH_OPEX = ELH_OPEX, ELH_power= ELH_power))
+        
+        Energy_yearly.append(np.sum(New_schedule[:,1]))
+
+    fitness = fun.Fittnes_LCOS(discount_rate = Discount_rate, CAPEX = CAPEX, Yearly_cost = Cost_yearly, Yearly_energy_out = Energy_yearly)
+    return fitness #returns LCOS in Euro/kWh
+
+#-------------------------------------------------------end of functions------------------------
+
+
+# ----------Gets the average cost for each day, and the hourly cost at each hour during the year--------
+
+Electricity_price_read = np.genfromtxt("sto-eur17.csv", delimiter=",")  # Prices in EUR/MWh
+El_cost_year = []
+El_cost_average_day = []
+
+for i in range(365):
+    for k in Electricity_price_read[i][0:24]:
+        El_cost_year.append((k/1000)*1.11) #Prices in Euro/kWh, by dividing by 1000, times 1.1 to get 2022 euro values due to inflation
+          
+    El_cost_average_day.append(((Electricity_price_read[i][24])/1000)*1.1)  #Prices in Euro/kwh that is why we are dividing by 1000, times 1.1 to get 2022 values
+
+
+# --------------------Read load data for both Electricity and Heating--------
+Load_data_read = pd.read_csv("Load_data_electricit_heating_2017.csv", header=0) #Takes values from January, Empty data in 7976 set to 0
+Electricity_load_pd = Load_data_read["Electricty [kW]"]
+Heating_load_pd = Load_data_read["Heating demand [kW]"]
+
+Heating_load = np.zeros(8760)
+Electricity_load = np.zeros(8760)
+
+for count, i in enumerate(Heating_load_pd):
+    Heating_load[count] = i
+
+for count, i in enumerate(Electricity_load_pd):
+    Electricity_load[count] = i
+
+# --------------------------------------------------------------------------
+
+
+# ---------------Input values (non changable)-------------------------------
+# ---------------For Schedule inputs----------------------------------------
+
+Energy_hourly_cost = np.array(El_cost_year)     #Prices in Euro/kWh
+Average_median_cost_day = np.array(El_cost_average_day) 
+Electricity_hourly_use = np.array(Electricity_load)
+Heating_hourly_use = np.array(Heating_load)
+ESS_charge_eff = 0.9
+ESS_discharge_eff = 0.9
+
+# Important to note that the maximum SoC for the battery is calculated in the schdule function
+# Only import is the Total max size that is also used for calculating the cost
+
+# ------For NPV/LCOE inputs -------------
+Lifetime_battery = 10  # in years
+ESS_capacity_cost = 427.31   # in Euro(2022) per kWh (CAPEX) all cost included
+ESS_power_cost = 1710.2  # in Euro(2022) per kW (all cost include)
+Fixed_ESS_O_and_M_cost = 4.19  # in Euro(2022) per kW-year
+Variable_ESS_O_and_M_cost = 0.488/1000 # in Euro(2022) per kWh-year 
+Discount_rate = 0.08 #8 percent
+ELH_power_cost = 331.2  # In Euro(2022) per kW "UKSupplyCurve" #Lifetime said to be 15 years
+ELH_OPEX = 1.5 # In euro(2022) per kW-year
+Gas_cost = (30/1.1218)/293.07106944 #Euro/kWh   #1 mmBTU = 293.07106944 kWh, Gas cost 30 usd per million btu, change to euro: 1 euro is 1.1218 USD, 
+                    #https://www.iea.org/data-and-statistics/charts/natural-gas-prices-in-europe-asia-and-the-united-states-jan-2020-february-2022
+Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to euro: 1 euro is 1.1218 USD january 1 2022
+
+#------------Setup of parameters for FF algorithm------------
+
+
+# ------------- Add the heating and electricity together as the maximum possible ESSpower
+total_energy_max = []
+for count, i in enumerate(Electricity_hourly_use):
+    total_energy_max.append(Electricity_hourly_use[count] + Heating_hourly_use[count])
+
+#the FF algo want to minimize the fitness function!
+
+n = 5 #number of agents (fireflies) Comparable to number of solution in GA
+fitness_function = fitness_func_NPV      #fitness function to be used
+lb1, ub1  = 0.1, 2000  #lower bound of search space (plot axis) #Higher bound of search space (plot axis) ESS capacity
+lb2, ub2 = 0.1, np.max(total_energy_max)#ESS power search space
+lb3, ub3 = 0.1, np.max(np.array(list(map(add,Electricity_hourly_use, Heating_hourly_use)))) #Electrical heater power search space
+dimensions = 3 #search space dimension (for this 3 one for ESS capcity, one for ESS power and last is Electrical heater power)
+iteration = 5  #number of iterations the algorithm will run
+
+csi = 1         #mutal attraction value
+psi =  1        #Light absoprtion coefficent
+alpha0 = 1      #initial value of the free randomization parameter alpha what alpha starts on iteration 1
+alpha1 = 0.1    #final value of the free randomization parameter alpha what alpha is going to for a value exponentionally depening on iteration t
+norm0 = 0       #first parameter for a normal (Gaussian) distribution 
+norm1 = 0.1     #second parameter for a normal (Gaussian) distribution #as we are looking at ints these are not normal gassuian
+
+#-----------set up FF algorithm----------
+start = time.time() 
+alh = fa_new_different_lb_ub.fa(n = n, function = fitness_function, lb1 = lb1, ub1 = ub1, lb2 = lb2, ub2 = ub2, lb3 = lb3, ub3 = ub3, dimension = dimensions,
+                         iteration = iteration, csi = csi, psi =  psi, alpha0 = alpha0,
+                        alpha1 = alpha1, norm0 = norm0, norm1 = norm1)
+
+end = time.time()
+print("here are the agents, with best fittness", alh.get_Gbest())
+if fitness_function == fitness_func_LCOS:
+    print("fitness value of best solution: ", fitness_function(alh.get_Gbest()))
+elif fitness_function == fitness_func_NPV:
+    print("fitness value of best solution: ", -fitness_function(alh.get_Gbest())) #negative value as we return the fitness value for NPV as a negative as the algo want to minimize it, then we have to flip the sign as we then have found the maximum
+print("Time to run optimization: ", abs(start-end))
+

@@ -10,7 +10,7 @@ import numpy as np
 import numpy_financial as npf
 import functions as fun
 import time
-import fa_new
+import fa_new_version_4
 import matplotlib.pyplot as plt
 
 
@@ -134,12 +134,12 @@ Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to eur
 
 #the FF algo want to minimize the fitness function!
 
-n = 10 #number of agents (fireflies) Comparable to number of solution 
+n = 20 #number of agents (fireflies) Comparable to number of solution 
 fitness_function = fitness_func_NPV       #fitness function to be used
 lb1, ub1= 0.1, 2000 
 lb2, ub2 = 0.1, np.max(Energy_hourly_use)  #lower bound of search space (plot axis)
 dimensions = 2 #search space dimension (for us 2 one for ESS capcity and one for ESS power)
-iteration = 100  #number of iterations the algorithm will run
+iteration = 20  #number of iterations the algorithm will run
 
 
 csi = 1  #mutal attraction value
@@ -156,7 +156,7 @@ Result_10_tries = [[],[],[]]
 for i in range(10):
 
     start = time.time() 
-    alh = fa_new.fa(n = n, function = fitness_function, lb1 = lb1, ub1 = ub1, lb2 = lb2, ub2 = ub2, dimension = dimensions,
+    alh = fa_new_version_4.fa(n = n, function = fitness_function, lb1 = lb1, ub1 = ub1, lb2 = lb2, ub2 = ub2, dimension = dimensions,
                         iteration = iteration, csi = csi, psi =  psi, alpha0 = alpha0,
                         alpha1 = alpha1, norm0 = norm0, norm1 = norm1)
     end = time.time()

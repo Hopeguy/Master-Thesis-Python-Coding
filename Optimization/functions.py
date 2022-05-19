@@ -5,6 +5,7 @@ Created on Tue Mar 29 14:59:18 2022
 @author: jocke
 """
 
+from errno import EEXIST
 import numpy as np
 import numpy_financial as npf
 
@@ -37,16 +38,16 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
     ESS_capacity_size = ESS_capacity_size*((Year*(-0.01612))+1) #a reduction of 1,612% each year. totaling in 15% at year 10
     #Energy_hourly_cost = Energy_hourly_cost*((Year*0.02)+1)  #Increase energy cost by 2% each year (from calculations no future energy price increase can be seen)
     #Average_median_cost_day = Average_median_cost_day*((Year*0.02)+1) #Increase energy cost by 2% each year (from calculations no future energy price increase can be seen)
-    Energy_hourly_use = Energy_hourly_use*((Year*-0.0227)+1)  #Electricity 2.27% and thermal 1.8% decrease yearly. %This might not be interesting and could be excluded as a single house wont change for a single home
+    #Energy_hourly_use = Energy_hourly_use*((Year*-0.0227)+1)  #Electricity 2.27% and thermal 1.8% decrease yearly. %This might not be interesting and could be excluded as a single house wont change for a single home
 
 
-    # States that the max SoC is 90% of max capacity
+    
     ESS_capacity_max = ESS_capacity_size*1 #Moongrid source 2020 #read section 3.5
-    # States that the min SoC is 10% of max capacity #source on this later \cite timmermans batteries 2016
-    ESS_capacity_min = ESS_capacity_size*0.2 #80% DoD read seciton 3.5, source moongrid 2020
+    ESS_capacity_min = ESS_capacity_size*0.2 #80%  read seciton 3.5, source moongrid 2020
 
     # Matrix to store Capacity and power input/output for each hour.
     schedule_charge_discharge = np.zeros((8760, 2))
+    schedule_capacity = np.zeros(8760)
     if ESS_capacity_size < ESS_capacity_prev_year: # Sets the starting capacity in the ESS to what was last year, and if the max capacity have become smaller than what was stored last year it sets it to maximum.
         ESS_capacity = ESS_capacity_size
     else:
@@ -68,10 +69,11 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                         # gives an list with how charged the ESS for each hour and what happends to the ESS
                         schedule_charge_discharge[hour_year][0] = ESS_power
                     else:
-                        ESS_capacity += (ESS_capacity_max - ESS_capacity)*ESS_charge_eff
-                        
-                        # This is when the ESS storage is close to be full, below max rated ESS power charge
                         schedule_charge_discharge[hour_year][0] = (ESS_capacity_max - ESS_capacity)
+                        ESS_capacity = ESS_capacity_max
+                        
+                        # This is when the ESS storage is full, below max rated ESS power charge
+                        
 
 
             # Checks if the average cost is lower than current (hourly) (We want to discharge ESS)
@@ -82,32 +84,41 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                         if ESS_capacity-ESS_capacity_min > ESS_power:  # Checks if we can discharge the battery with maximum Power
                             ESS_capacity -= ESS_power  # charges the ESS with its maximum power
                             # Sets the schedule to a negative value as it uses energy from the ESS
-                            schedule_charge_discharge[hour_year][1] = ESS_power*ESS_discharge_eff
-                        else:
-                            ESS_capacity = ESS_capacity_min
+                            schedule_charge_discharge[hour_year][1] = ESS_power*ESS_discharge_eff 
+                        else: #(ESS_capacity-ESS_capacity_min) < ESS_power:
+                            schedule_charge_discharge[hour_year][1] = (ESS_capacity - ESS_capacity_min)*ESS_discharge_eff
+                            ESS_capacity = ESS_capacity_min # We reduce the capacity to the minimum value (we use up what is left)
                             
                             # This case is when we have less than maximum power, and then uses up the last energy availbale in the ESS
-                            schedule_charge_discharge[hour_year][1] = ESS_capacity*ESS_discharge_eff
+                            
+                            
                     # When the powered used by consumer is less then the maximum power by the ESS, we here then use the maximu we can but that is less than ESS power max
                     if Energy_hourly_use[hour_year] < ESS_power:
                         # Checks that the ESS have above the energy we want to discharge from it
-                        if ESS_capacity > Energy_hourly_use[hour_year]:
-                            ESS_capacity -= Energy_hourly_use[hour_year]
-                            schedule_charge_discharge[hour_year][1] = (Energy_hourly_use[hour_year])*ESS_discharge_eff
+                        if (ESS_capacity-ESS_capacity_min) > (Energy_hourly_use[hour_year]/ESS_discharge_eff):
+                            ESS_capacity -= Energy_hourly_use[hour_year]/ESS_discharge_eff #We remove the capacity equal to what the user want divided by the eff in order to give them exactly what they need.
+                            schedule_charge_discharge[hour_year][1] = (Energy_hourly_use[hour_year]) #We "sell" the amount they want to use
                         # This is the case when we dont enough energy to discharge from the ESS so we take all we can take from this hour.
-                        elif ESS_capacity < Energy_hourly_use[hour_year]:
+                        else: #(ESS_capacity-ESS_capacity_min) < Energy_hourly_use[hour_year]:
+                            schedule_charge_discharge[hour_year][1] = (ESS_capacity - ESS_capacity_min)*ESS_discharge_eff
                             ESS_capacity = ESS_capacity_min
                          
-                            schedule_charge_discharge[hour_year][1] = ESS_capacity*ESS_discharge_eff
-
+                            
+            schedule_capacity[hour_year] = (ESS_capacity)
             hour_year += 1  # At what hour we are in during the year
 
     # Returns a 8760x2 matrix where the first column is the charge schedule, and the second is the discharge scehdule, third is the capacity at the end of the year
     #The discharge and charge is how much kWh that is charged or discharge at each hour
 
-    return np.array(schedule_charge_discharge), ESS_capacity
+    return np.array(schedule_charge_discharge), ESS_capacity, schedule_capacity
 
 # -------------------------------------------------------
+
+def Residual_value_ELH(Interest_rate, ELH_power_cost, ELH_power, Lifetime_ELH, project_lifetime):
+    ELH_cost = ELH_power*ELH_power_cost
+    Monthly_value = npf.pmt(pv = ELH_cost, nper = Lifetime_ELH, rate = Interest_rate)
+    Resiudal_value = Monthly_value*(abs(Lifetime_ELH-project_lifetime))
+    return Resiudal_value
 
 def Peak_diff(Electricty_usage_pre_schedule, Schedule):
     """
@@ -182,4 +193,6 @@ def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and
     cost_o_and_m_variable =  np.sum(schedule_discharge*Variable_O_and_M_cost)
     cost_yearly = cost_charge + cost_o_and_m_variable + cost_o_and_m_fixed  #This is the total cashflow after a year with all parts included
     
-    return cost_yearly
+    Cost_divided = [cost_charge, cost_o_and_m_fixed, cost_o_and_m_variable, cost_yearly]  #Charge, fixed OnM, Variable OnM, Combinded
+    
+    return cost_yearly, Cost_divided

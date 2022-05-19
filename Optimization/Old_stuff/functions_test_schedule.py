@@ -5,9 +5,9 @@ Created on Tue Mar 29 14:59:18 2022
 @author: jocke
 """
 
+from errno import EEXIST
 import numpy as np
 import numpy_financial as npf
-from sympy import N
 
 
 
@@ -68,9 +68,11 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                         ESS_capacity += ESS_power*ESS_charge_eff
                         # gives an list with how charged the ESS for each hour and what happends to the ESS
                         schedule_charge_discharge[hour_year][0] = ESS_power
+                        
                     else:
                         schedule_charge_discharge[hour_year][0] = (ESS_capacity_max - ESS_capacity)
                         ESS_capacity = ESS_capacity_max
+                        
                         
                         # This is when the ESS storage is full, below max rated ESS power charge
                         
@@ -85,6 +87,7 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                             ESS_capacity -= ESS_power  # charges the ESS with its maximum power
                             # Sets the schedule to a negative value as it uses energy from the ESS
                             schedule_charge_discharge[hour_year][1] = ESS_power*ESS_discharge_eff
+                            
                         else: #(ESS_capacity-ESS_capacity_min) < ESS_power:
                             schedule_charge_discharge[hour_year][1] = (ESS_capacity - ESS_capacity_min)*ESS_discharge_eff
                             ESS_capacity = ESS_capacity_min # We reduce the capacity to the minimum value (we use up what is left)
@@ -95,24 +98,31 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
                     # When the powered used by consumer is less then the maximum power by the ESS, we here then use the maximu we can but that is less than ESS power max
                     if Energy_hourly_use[hour_year] < ESS_power:
                         # Checks that the ESS have above the energy we want to discharge from it
-                        if (ESS_capacity-ESS_capacity_min) > (Energy_hourly_use[hour_year]/ESS_discharge_eff):
-                            ESS_capacity -= Energy_hourly_use[hour_year]/ESS_discharge_eff #We remove the capacity equal to what the user want divided by the eff in order to give them exactly what they need.
-                            schedule_charge_discharge[hour_year][1] = (Energy_hourly_use[hour_year]) #We "sell" the amount they want to use
+                        if (ESS_capacity-ESS_capacity_min) > Energy_hourly_use[hour_year]:
+                            ESS_capacity -= Energy_hourly_use[hour_year]
+                            schedule_charge_discharge[hour_year][1] = (Energy_hourly_use[hour_year])*ESS_discharge_eff
+                            
                         # This is the case when we dont enough energy to discharge from the ESS so we take all we can take from this hour.
                         else: #(ESS_capacity-ESS_capacity_min) < Energy_hourly_use[hour_year]:
                             schedule_charge_discharge[hour_year][1] = (ESS_capacity - ESS_capacity_min)*ESS_discharge_eff
                             ESS_capacity = ESS_capacity_min
-                         
+                            
                             
             schedule_capacity[hour_year] = (ESS_capacity)
             hour_year += 1  # At what hour we are in during the year
+            
 
     # Returns a 8760x2 matrix where the first column is the charge schedule, and the second is the discharge scehdule, third is the capacity at the end of the year
     #The discharge and charge is how much kWh that is charged or discharge at each hour
-
-    return np.array(schedule_charge_discharge), ESS_capacity, schedule_capacity
-
+    
+    return [schedule_charge_discharge , schedule_capacity] 
 # -------------------------------------------------------
+
+def Residual_value_ELH(Interest_rate, ELH_power_cost, ELH_power, Lifetime_ELH, project_lifetime):
+    ELH_cost = ELH_power*ELH_power_cost
+    Monthly_value = npf.pmt(pv = ELH_cost, nper = Lifetime_ELH, rate = Interest_rate)
+    Resiudal_value = Monthly_value*(abs(Lifetime_ELH-project_lifetime))
+    return Resiudal_value
 
 def Peak_diff(Electricty_usage_pre_schedule, Schedule):
     """
@@ -132,7 +142,7 @@ def Peak_diff(Electricty_usage_pre_schedule, Schedule):
         Monthly_max_pre[count] = np.max(Electricty_usage_pre_schedule[count*730:(count+1)*730])
         Monthly_max_after[count] = np.max(New_electricity_usage_with_discharge_and_charge[count*730:(count+1)*730])
     
-    Monthly_peak_diff = np.subtract(Monthly_max_pre, Monthly_max_after) #subtracts the discharge and adds the charge from the pre schedule with the schedule
+    Monthly_peak_diff = abs(np.subtract(Monthly_max_pre, Monthly_max_after)) #subtracts the discharge and adds the charge from the pre schedule with the schedule
     #print(Monthly_peak_diff)
 
     return Monthly_peak_diff #Array with 12 values (on for each month of the year)
@@ -167,28 +177,24 @@ def Fitness_NPV(discount_rate, cashflows):
 
 
 
-def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost,
-                        Variable_O_and_M_cost, ESS_power, ELH_power, ELH_OPEX, Gas_cost,
-                        Heating_demand_after_ELH, Heating_demand_pre, Peak_diff, Peak_diff_cost): #Gives the profits after all yearly costs and profits
+def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power, Peak_diff, Peak_diff_cost): #Gives the profits after all yearly costs and profits
     
-    profit_kWh = np.sum(schedule_discharge*demand_cost) #profit from selling electrcity at higher prices times
-    profit_peak_kW = np.sum(Peak_diff*Peak_diff_cost) #profit from difference in electricity demand (kW)
-    cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m_fixed = ESS_power*Fixed_O_and_M_cost   #Dependent on year or hourly use per year. 
-    cost_o_and_m_variable = np.sum(schedule_discharge*Variable_O_and_M_cost)
-    cost_OPEX_ELH = ELH_power*ELH_OPEX
-    profit_saved_heating = (np.sum(Heating_demand_pre) - np.sum(Heating_demand_after_ELH))*Gas_cost
-    cashflow_total =  (profit_kWh + profit_peak_kW + profit_saved_heating) - cost_charge - cost_o_and_m_fixed - cost_o_and_m_variable - cost_OPEX_ELH #This is the total cashflow after a year with all calculations included
-    #print("Cashflow: ", cashflow_total, "Profit_kWH: ", profit_kWh, "Profit_peak: ", profit_peak_kW, "Cost_charge: ", cost_charge, "cost o and m: ", cost_o_and_m_fixed, "cost o and m Variable: ", cost_o_and_m_variable, "Cost heating gas ", cost_heating)
-    return cashflow_total
+    profit_kWh = abs(np.sum(schedule_discharge*demand_cost)) #profit made from discharge of the ESS at higher electricity cost
+    profit_peak_kW = abs(np.sum(Peak_diff*Peak_diff_cost)) #profit made form peak difference monthly using the ESS instead of using only grid
+    cost_charge = abs(np.sum(schedule_load*demand_cost)) #only cost for charging the unit
+    cost_o_and_m_fixed = abs(ESS_power*Fixed_O_and_M_cost)   #Dependent on year or hourly use per year. 
+    cost_o_and_m_variable = abs(np.sum(schedule_discharge*Variable_O_and_M_cost))
+    cashflow_total =  profit_kWh + profit_peak_kW - cost_charge - cost_o_and_m_fixed - cost_o_and_m_variable #This is the total cashflow after a year with all calculations included
+    Divided_cost_profit = [profit_kWh, profit_peak_kW, (-cost_charge), (-cost_o_and_m_fixed), (-cost_o_and_m_variable), cashflow_total]
+    #print("Profit: ", profit_kWh, "Profit_peak_kW: ", profit_peak_kW, "Cost_charge: ", -cost_charge, "cost o and m: ", -cost_o_and_m_fixed, "cost o and m Variable: ", -cost_o_and_m_variable)
+    return [cashflow_total, Divided_cost_profit]
 
-def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost,
-                 Variable_O_and_M_cost, ESS_power, ELH_power, ELH_OPEX): #Gives the profits after all yearly costs and profits
+def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power): #Gives the profits after all yearly costs and profits
     
 
     cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m = (ESS_power*Fixed_O_and_M_cost) + np.sum(schedule_discharge*Variable_O_and_M_cost) + (ELH_power*ELH_OPEX) #Dependent on year or hourly use per year. 
-    
-    cost_yearly = cost_charge + cost_o_and_m  #This is the total cost after a year with all parts included
+    cost_o_and_m_fixed = (ESS_power*Fixed_O_and_M_cost)  #Dependent on year or hourly use per year. 
+    cost_o_and_m_variable =  np.sum(schedule_discharge*Variable_O_and_M_cost)
+    cost_yearly = cost_charge + cost_o_and_m_variable + cost_o_and_m_fixed  #This is the total cashflow after a year with all parts included
     
     return cost_yearly

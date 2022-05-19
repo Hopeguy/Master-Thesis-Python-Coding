@@ -3,7 +3,7 @@ from ast import Load
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+from yaml import load
 
 Load_data_read = pd.read_csv("Load_data_electricit_heating_2017.csv", header=0) #Takes values from January
 Electricity_load_pd = Load_data_read["Electricty [kW]"]
@@ -21,13 +21,13 @@ for count, i in enumerate(Electricity_load_pd):
 
 
 def Electricity_heater_load(Power, Heating_load):
-    """"
+    
     Power in kW
     Heating load in kWh (An array with 8760 hours)
     Efficency set to 95% (Source)
     Output is the new lower heating load that has been taken care of with the electrical heater (array of 8760 hours)
     Electrical load from the electrical heater (array of 8760 hours)
-    """
+    
     
     Efficency = 0.95 # Depending on source but assumed to be 95 (Source  "UKSupplyCurve")
     Electricity_load_heater = np.zeros(8760)
@@ -52,4 +52,7 @@ Electricity_load_heater, New_heating_load  = Electricity_heater_load(Power = Pow
 print(Electricity_load_heater)
 print(New_heating_load)
 print(Heating_load)
+
+
+
 

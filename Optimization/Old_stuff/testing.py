@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import functions as fun
+import functions_test_schedule as fun
 import time
 import matplotlib.pyplot as plt
 
@@ -67,7 +67,7 @@ def fitness_func_NPV(solution):
     """
     Returns the NPV value (used as fitness value in GA)
     """
-
+    
     ESS_capacity, ESS_power = solution[0], solution[1]
     
     cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost))] #First Year is just capex cost and negative as it is a cost
@@ -147,7 +147,7 @@ Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to eur
 
 
 #Testing all values:
-start_2 = time.time()
+"""start_2 = time.time()
 Battery_capacity = list(range(1, 10))  # kWh Trying it out with smaller sample first to look at time
 Battery_power = list(range(1, 10))
 
@@ -167,3 +167,21 @@ All_solutions.sort(key=lambda i: i[2], reverse=True)
 
 end_2 = time.time()
 print(All_solutions[0], abs(start_2-end_2))
+"""
+
+
+Schedule = fun.ESS_schedule(ESS_capacity_size=100, ESS_power=10,
+                                        Energy_hourly_cost=Energy_hourly_cost,
+                                        Average_median_cost_day=Average_median_cost_day,
+                                        Energy_hourly_use=Energy_hourly_use,
+                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = 0, ESS_capacity_prev_year= 0)
+
+Data = []
+Data.append(Schedule[0])
+Data.append(Schedule[1])
+New_data = []
+New_data.append(Data[0][:,0])
+New_data.append(Data[0][:,1])
+New_data.append(Schedule[1])
+
+np.savetxt("Schedule.csv", New_data, delimiter=",")

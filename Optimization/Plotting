@@ -1,0 +1,56 @@
+
+from ast import Load
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+iter_5 = np.empty((3,10)) #First array is power, second is Capacity, last is NPV
+iter_10 = np.empty((3,10)) #First array is power, second is Capacity, last is NPV
+iter_25 = np.empty((3,10)) #First array is power, second is Capacity, last is NPV
+iter_50 = np.empty((3,10)) #First array is power, second is Capacity, last is NPV
+iter_75 = np.empty((3,10)) #First array is power, second is Capacity, last is NPV
+iter_100 = np.empty((3,10)) #First array is power, second is Capacity, last is NPV
+iter_200 = np.empty((3,10)) #First array is power, second is Capacity, last is NPV
+
+load_iteration_10 = pd.read_csv('Results/Pygad_case_NPV/Pygad_case_NPV_10_generation.csv')
+Iteration_10_NPV = [load_iteration_10["ESS_power"], load_iteration_10["ESS_capacity"], load_iteration_10["fitness_function"]]
+for count, i in enumerate(Iteration_10_NPV):
+    for count2, k in enumerate(i):
+        iter_10[count][count2] = k
+
+load_iteration_50 = pd.read_csv('Results/Pygad_case_NPV/Pygad_case_NPV_50_generation.csv')
+Iteration_50_NPV = [load_iteration_10["ESS_power"], load_iteration_50["ESS_capacity"], load_iteration_50["fitness_function"]]
+for count, i in enumerate(Iteration_50_NPV):
+    for count2, k in enumerate(i):
+        iter_50[count][count2] = k
+
+load_iteration_100 = pd.read_csv('Results/Pygad_case_NPV/Pygad_case_NPV_100_generation.csv')
+Iteration_100_NPV = [load_iteration_100["ESS_power"], load_iteration_100["ESS_capacity"], load_iteration_100["fitness_function"]]
+for count, i in enumerate(Iteration_100_NPV):
+    for count2, k in enumerate(i):
+        iter_100[count][count2] = k
+
+
+load_iteration_200 = pd.read_csv('Results/Pygad_case_NPV/Pygad_case_NPV_200_generation.csv')
+Iteration_200_NPV = [load_iteration_200["ESS_power"], load_iteration_200["ESS_capacity"], load_iteration_200["fitness_function"]]
+for count, i in enumerate(Iteration_200_NPV):
+    for count2, k in enumerate(i):
+        iter_200[count][count2] = k
+
+All = [(iter_10,'^', 'r', '10 gen'),(iter_50,'p', 'm', '50 gen'), (iter_100, 's', 'y', '100 gen '), (iter_200, 'o', 'b', '200 gen')]
+
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+
+for t, m, c, label in All:
+    xs = t[0]
+    ys = t[1]
+    zs = t[2]
+    ax.scatter(xs, ys, zs, marker = m, c = c, label = label)
+fig.tight_layout()
+fig.subplots_adjust(right=0.8)
+ax.legend(loc='upper left', bbox_to_anchor=(1.15, 1), fontsize=12)
+ax.view_init(45, 45)
+ax.set_xlabel('Power kW')
+ax.set_ylabel('Capacity kWh')
+ax.set_zlabel('Fittness NPV', labelpad=10)
+

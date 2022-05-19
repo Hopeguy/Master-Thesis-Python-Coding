@@ -16,16 +16,21 @@ import matplotlib.pyplot as plt
 
 def fitness_func_NPV(solution):
     """
-    Returns the NPV value, and solves for the cost and profits divided
+    Returns the NPV value (used as fitness value in GA)
     """
     global cashflow_divided
     global ESS_capacity, ESS_power
+    global Schedule_sum
+    global Schedule
+    global Schedule_capacity
+    global ESS_capacity_year
     ESS_capacity, ESS_power = solution[0], solution[1]
     
     cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost))] #First Year is just capex cost and negative as it is a cost
-    cashflow_divided = np.zeros(8)
+    cashflow_divided = np.zeros(7)
+    Schedule_sum = np.zeros(2)
     ESS_capacity_year = 0 #Starts with zero energy in the storage
-    for year in range(1,11): # starts at year 1 and includes year 10 as the lifetime of ESS is 10 years (battery) 
+    for year in range(10): # starts at year 1 and includes year 10 as the lifetime of ESS is 10 years (battery) 
         
         Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
                                         Energy_hourly_cost=Energy_hourly_cost,
@@ -38,6 +43,7 @@ def fitness_func_NPV(solution):
         #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
         New_schedule = Schedule[0]
         ESS_capacity_year = Schedule[1]  #Inputs the preveious years ess capacity to next years
+        Schedule_capacity = Schedule[2]
         Peak_diff = fun.Peak_diff(Electricty_usage_pre_schedule = Energy_hourly_use, Schedule = Schedule[0])
         Cashflow_yearly = fun.cashflow_yearly_NPV(schedule_load = New_schedule[:, 0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
                                                         Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost,
@@ -45,39 +51,13 @@ def fitness_func_NPV(solution):
         #print(Cashflow_yearly[1])
         for count, i in enumerate(Cashflow_yearly[1]):
             cashflow_divided[count] += i
-
+        Schedule_sum[0] = np.sum(New_schedule[:, 0])  #Charge shcedule summed up kWh
+        Schedule_sum[1] = np.sum(New_schedule[:, 1])  #Discharge summed up in kWh
+        
         cashflow_each_year.append(Cashflow_yearly[0])
     fitness = fun.Fitness_NPV(discount_rate = Discount_rate, cashflows = cashflow_each_year)
     return -fitness #negative as the FF algo want to minimize the fitness function
 
-
-def fitness_func_LCOS(solution):
-    ESS_capacity, ESS_power = solution[0], solution[1]
-    CAPEX = ((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost)) 
-    Cost_yearly = []
-    Energy_yearly = []
-    ESS_capacity_year = 0 #Starts with zero energy in the storage
-    
-    for year in range(1,11): # starts at year 1 and includes year 10 as the lifetime of ESS is 10 years (battery)
-        
-        Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
-                                        Energy_hourly_cost=Energy_hourly_cost,
-                                        Average_median_cost_day=Average_median_cost_day,
-                                        Energy_hourly_use=Energy_hourly_use,
-                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year = year, ESS_capacity_prev_year= ESS_capacity_year)
-    
-                
-        #This calculates the cost of buying and using the ESS storage, as well as the profits of sell energy from it, and inputs that into an array for each year.
-        #This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
-        New_schedule = Schedule[0]
-        ESS_capacity_year = Schedule[1]  #Inputs the preveious years ess capacity to next years
-        Cost_yearly.append(fun.Cost_yearly_LCOS(schedule_load = New_schedule[:,0], schedule_discharge = New_schedule[:,1], demand_cost = Energy_hourly_cost,
-                             Fixed_O_and_M_cost = Fixed_ESS_O_and_M_cost, Variable_O_and_M_cost = Variable_ESS_O_and_M_cost, ESS_power = ESS_power))
-        
-        Energy_yearly.append(np.sum(New_schedule[:,1]))
-
-    fitness = fun.Fittnes_LCOS(discount_rate = Discount_rate, CAPEX = CAPEX, Yearly_cost = Cost_yearly, Yearly_energy_out = Energy_yearly)
-    return fitness #returns LCOS in Euro/kWh
 
 #-------------------------------------------------------end of functions------------------------
 
@@ -136,10 +116,10 @@ Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to eur
 
 n = 10 #number of agents (fireflies) Comparable to number of solution 
 fitness_function = fitness_func_NPV       #fitness function to be used
-lb1, ub1= 0.1, 2000 
+lb1, ub1= 0.1, 8000 
 lb2, ub2 = 0.1, np.max(Energy_hourly_use)  #lower bound of search space (plot axis)
 dimensions = 2 #search space dimension (for us 2 one for ESS capcity and one for ESS power)
-iteration = 100  #number of iterations the algorithm will run
+iteration = 10  #number of iterations the algorithm will run
 
 
 csi = 1  #mutal attraction value
@@ -151,7 +131,7 @@ norm1 = 0.1  #second parameter for a normal (Gaussian) distribution #as we are l
 
 
 #-----------set up FF algorithm----------
-Result_10_tries = [[],[],[]]
+Result_10_tries = [[],[],[],[],[],[],[],[],[],[],[],[],[]]
 
 for i in range(10):
 
@@ -161,33 +141,95 @@ for i in range(10):
                         alpha1 = alpha1, norm0 = norm0, norm1 = norm1)
     end = time.time()
 
+
+    cost_investment = -((ESS_capacity_cost*alh.get_Gbest()[0]) + (alh.get_Gbest()[1]*ESS_power_cost))  #Adds the investment cost
     
-    Result_10_tries[0].append(alh.get_Gbest())
-    Result_10_tries[1].append(-fitness_function(alh.get_Gbest()))
-    Result_10_tries[2].append(abs(end-start))
-    print(Result_10_tries[1])
+    Result_10_tries[0].append(alh.get_Gbest()[0]) #Capacity
+    Result_10_tries[1].append(alh.get_Gbest()[1]) #Power
+    Result_10_tries[2].append(-fitness_function(alh.get_Gbest())) #fittness function positive when looking for LCOS
+    Result_10_tries[3].append(abs(end-start)) #Times
+    Result_10_tries[4].append(cashflow_divided[0]) #profit from selling kWh
+    Result_10_tries[5].append(cashflow_divided[1])  #profit from Peak_kW
+    Result_10_tries[6].append(cashflow_divided[2])  #cost from chargin
+    Result_10_tries[7].append(cashflow_divided[3])  #cost OnM fixed
+    Result_10_tries[8].append(cashflow_divided[4])  #Cost OnM Variable
+    Result_10_tries[9].append(cashflow_divided[5])  #Cashflow_total
+    Result_10_tries[10].append(cost_investment) #cost investment
+    Result_10_tries[11].append(Schedule_sum[0]) #Charge energy to BESS
+    Result_10_tries[12].append(Schedule_sum[1]) #Discharge energy from BESS
+    print(Result_10_tries[2])
 
 
-print("here are the agents, with best fittness", alh.get_Gbest())
-if fitness_function == fitness_func_LCOS:
-    print("fitness value of bes solution: ", fitness_function(alh.get_Gbest()))
-elif fitness_function == fitness_func_NPV:
-    print("fitness value of bes solution: ", -fitness_function(alh.get_Gbest())) #negative value as we return the fitness value for NPV as a negative as the algo want to minimize it, then we have to flip the sign as we then have found the maximum
-print("Time to run optimization: ", abs(start-end))
+Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
+                                        Energy_hourly_cost=Energy_hourly_cost,
+                                        Average_median_cost_day=Average_median_cost_day,
+                                        Energy_hourly_use=Energy_hourly_use,
+                                        ESS_discharge_eff=ESS_discharge_eff, 
+                                        ESS_charge_eff=ESS_charge_eff, Year = 10, 
+                                        ESS_capacity_prev_year= ESS_capacity_year)
 
-cost_investment = -((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost))
+Average_hourly_cost = []
+for count,average in enumerate(Average_median_cost_day):
+    for i in range(24):
+        Average_hourly_cost.append(average)
+        
 
-cashflow_divided[6] = cost_investment  #Adds the investment cost
-cashflow_divided[7] = -fitness_function(alh.get_Gbest()) #Adds the NPV to the list of all the cost and profits
-#Plot of all the cost and profits over the tne years divided
-print("Profit kWh: ",cashflow_divided[0], "Profit peak: ", cashflow_divided[1])
-print("cost charge: ", cashflow_divided[2], "cost OnM fixed: ", cashflow_divided[3], "cost OnM variable: ", cashflow_divided[4])
-print("Total cashflow: ", cashflow_divided[5], "Cost investment: ", cost_investment, "NPV or LCOS: ", cashflow_divided[7])
+Charge_discharge = []
 
-fig, ax = plt.subplots()
-ax.bar(["Profit_kWh", "Profit_peak", "cost_charge", "Cost_OnM_fixed", "cost_OnM_variable", "Total_cashflow","Investment cost: ", "NPV or LCOS"], cashflow_divided, width=1, edgecolor="white", linewidth=1)
+for count, hour_cost in enumerate(Energy_hourly_cost):
+    if hour_cost < Average_hourly_cost[count]:
+        Charge_discharge.append('Charge+++++')
+    else:
+        Charge_discharge.append('Discharge-----')
 
-plt.show()
+Schedule_last_year = [[],[],[],[],[],[],[]]
+Schedule_last_year[0] = Schedule[0][:,0]
+Schedule_last_year[1] = Schedule[0][:,1]
+Schedule_last_year[2] = Schedule[2]
+Schedule_last_year[3] = Energy_hourly_use
+Schedule_last_year[4] = np.array(Average_hourly_cost)
+Schedule_last_year[5] = np.array(El_cost_year)
+Schedule_last_year[6] = Charge_discharge
 
-plt.plot(Result_10_tries[0])
-plt.plot(Result_10_tries[1])
+data_schedule = {'charge': Schedule_last_year[0], 'discharge': Schedule_last_year[1],
+             'capacity': Schedule_last_year[2], 'Energy_use': Schedule_last_year[3], 
+             'Average_daily_cost': Schedule_last_year[4], 'Energy_hourly_cost':Schedule_last_year[5],
+             'Charge_or_discharge': Schedule_last_year[6]}
+
+tf = pd.DataFrame(data_schedule, columns=['charge', 'discharge', 'capacity',
+                             'Energy_use', 'Average_daily_cost', 'Energy_hourly_cost', 'Charge_or_discharge'])
+
+
+std_ESS_power = np.std(Result_10_tries[1]) 
+std_ESS_capacity = np.std(Result_10_tries[0])
+std_fitness_function = np.std(Result_10_tries[2])
+
+
+raw_data = {'ESS_power': Result_10_tries[1],
+                'ESS_capacity': Result_10_tries[0],
+                'fitness_function': Result_10_tries[2],
+                'Time': Result_10_tries[3],
+                'std_ESS_power': std_ESS_power,
+                'std_ESS_capacity': std_ESS_capacity,
+                'std_fitness_function': std_fitness_function,
+                'profit_kWh': Result_10_tries[4],
+                'profit_peak_kW': Result_10_tries[5],
+                'cost_charge': Result_10_tries[6],
+                'cost_O_n_M_fixed': Result_10_tries[7],
+                'cost_O_n_m_variable': Result_10_tries[8],
+                'Cashflow_total': Result_10_tries[9],
+                'Cost_investment': Result_10_tries[10],
+                'Summed_charge_kWh': Result_10_tries[11],
+                'Summed_Discharge_kWh': Result_10_tries[12]}
+
+df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'fitness_function',
+                                           'Time', 'std_ESS_power', 'std_ESS_capacity', 'std_fitness_function',
+                                           'profit_kWh', 'profit_peak_kW',
+                                           'cost_charge', 'cost_O_n_M_fixed', 'cost_O_n_m_variable', 'Cashflow_total',
+                                           'Cost_investment', 'Summed_charge_kWh', 'Summed_Discharge_kWh'])
+
+df.to_csv(r'Results\Firefly_case_1_ESS_NPV\ESS_power_NPV_etc\Firefly_case_ESS_10_gen.csv', index=False, )
+tf.to_csv(r'Results\Firefly_case_1_ESS_NPV\Charge_discharge_capacity\Firefly_case_ESS_10_gen_Sch_year_10.csv', index=False, )
+
+
+print("done")

@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import numpy_financial as npf
+from functions import Residual_value_ELH
 import functions_ELH as fun
 import time
 import pygad
@@ -35,8 +36,9 @@ def fitness_func_NPV(solution, solution_idx):
     """
 
     ESS_capacity, ESS_power, ELH_power = solution[0], solution[1], solution[2]
-    
-    cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost) + ELH_power*ELH_power_cost)] #First Year is just capex cost and negative as it is a cost
+    Res_value_ELH = Residual_value_ELH(ELH_power = ELH_power, ELH_power_cost = ELH_power_cost,
+                    Interest_rate = Discount_rate, Lifetime_ELH = Lifetime_ELH, project_lifetime = Lifetime_project)
+    cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost) + (ELH_power*ELH_power_cost)) + Res_value_ELH] #First Year is just capex cost and negative as it is a cost
     ESS_capacity_year = 0 #Starts with zero energy in the storage
 
     Electricity_heating_load = Electricity_heater_load(Power=ELH_power, Heating_load = Heating_hourly_use) #array first is the electricity load from ELH, and second array is the new Heating load
@@ -67,7 +69,9 @@ def fitness_func_NPV(solution, solution_idx):
 
 def fitness_func_LCOS(solution, solution_idx):
     ESS_capacity, ESS_power, ELH_power = solution[0], solution[1], solution[2]
-    CAPEX = ((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost) + ELH_power*ELH_power_cost) 
+    Res_value_ELH = Residual_value_ELH(ELH_power = ELH_power, ELH_power_cost = ELH_power_cost,
+                    Interest_rate = Discount_rate, Lifetime_ELH = Lifetime_ELH, project_lifetime = Lifetime_project)
+    CAPEX = ((ESS_capacity_cost*ESS_capacity) + (ESS_power*ESS_power_cost) + (ELH_power*ELH_power_cost) - Res_value_ELH) 
     Cost_yearly = []
     Energy_yearly = []
     ESS_capacity_year = 0 #Starts with zero energy in the storage
@@ -143,7 +147,7 @@ ESS_discharge_eff = 0.9
 # Important to note that the maximum SoC for the battery is calculated in the schedule function
 
 # ------------------------For NPV/LCOE inputs --------------------------
-Lifetime_battery = 10  # in years
+Lifetime_battery, Lifetime_project, Lifetime_ELH = 10, 10, 15  # in years
 ESS_capacity_cost = 427.31   # in Euro(2022) per kWh (CAPEX) all cost included
 ESS_power_cost = 1710.2  # in Euro(2022) per kW (all cost include)
 Fixed_ESS_O_and_M_cost = 4.19  # in Euro(2022) per kW-year

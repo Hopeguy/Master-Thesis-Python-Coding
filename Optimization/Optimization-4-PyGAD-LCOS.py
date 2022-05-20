@@ -242,7 +242,7 @@ df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'fitness_fun
 
 
 
-df.to_csv(r'Results\Pygad_case_LCOS\ESS_power_LCOS_etc\Pygad_case_LCOS_200_gen.csv', index=False, )
-tf.to_csv(r'Results\Pygad_case_LCOS\Charge_discharge_capacity\Pygad_case_LCOS_200_gen_Sch_year_10.csv', index=False, )
+df.to_csv(r'Results\Pygad_case_2_LCOS\ESS_power_LCOS_etc\Pygad_case_LCOS_200_gen.csv', index=False, )
+tf.to_csv(r'Results\Pygad_case_2_LCOS\Charge_discharge_capacity\Pygad_case_LCOS_200_gen_Sch_year_10.csv', index=False, )
 
 print('done')

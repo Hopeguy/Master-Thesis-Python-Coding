@@ -10,8 +10,8 @@ class fa(intelligence.sw):
     Firefly Algorithm
     """
 
-    def __init__(self, n, function, lb1, ub1, lb2, ub2, dimension, iteration, csi=1, psi=1,
-                 alpha0=1, alpha1=0.1, norm0=0, norm1=0.1):
+    def __init__(self, n, function, lb1, ub1, lb2, ub2, dimension, iteration, csi, psi,
+                 alpha0, alpha1, norm0, norm1):
         """
         :param n: number of agents
         :param function: test function
@@ -81,5 +81,4 @@ class fa(intelligence.sw):
         beta = csi / (1 + psi * r ** 2)
 
         self.__agents[i] = self.__agents[i] + beta * (                  #One thing is changed from the base version, it said self._agents[j] but it should be i instead of j
-            self.__agents[i] - self.__agents[j]) + alpha * exp(-t) * \
-                                                   np.random.normal(norm0, norm1, dimension)
+            self.__agents[i] - self.__agents[j]) + alpha * exp(-t) * np.random.normal(norm0, norm1, dimension)

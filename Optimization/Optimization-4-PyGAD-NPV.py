@@ -241,8 +241,8 @@ df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'fitness_fun
                                            'cost_charge', 'cost_O_n_M_fixed', 'cost_O_n_m_variable', 'Cashflow_total',
                                            'Cost_investment', 'Summed_charge_kWh', 'Summed_Discharge_kWh'])
 
-df.to_csv(r'Results\Pygad_Case_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_200_gen.csv', index=False, )
-tf.to_csv(r'Results\Pygad_Case_ESS_NPV\Charge_discharge_capacity\Pygad_case_ESS_200_gen_Sch_year_10.csv', index=False, )
+df.to_csv(r'Results\Pygad_Case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_200_gen.csv', index=False, )
+tf.to_csv(r'Results\Pygad_Case_2_ESS_NPV\Charge_discharge_capacity\Pygad_case_ESS_200_gen_Sch_year_10.csv', index=False, )
 
 
 print("done")

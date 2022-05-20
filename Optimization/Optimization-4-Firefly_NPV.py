@@ -114,17 +114,17 @@ Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to eur
 
 #the FF algo want to minimize the fitness function!
 
-n = 10 #number of agents (fireflies) Comparable to number of solution 
+n = 7 #number of agents (fireflies) Comparable to number of solution 
 fitness_function = fitness_func_NPV       #fitness function to be used
 lb1, ub1= 0.1, 8000 
 lb2, ub2 = 0.1, np.max(Energy_hourly_use)  #lower bound of search space (plot axis)
 dimensions = 2 #search space dimension (for us 2 one for ESS capcity and one for ESS power)
-iteration = 10  #number of iterations the algorithm will run
+iteration = 50  #number of iterations the algorithm will run
 
 
 csi = 1  #mutal attraction value
 psi =  1 #Light absoprtion coefficent
-alpha0 = 1  #initial value of the free randomization parameter alpha what alpha starts on iteration 1
+alpha0 = iteration  #initial value of the free randomization parameter alpha what alpha starts on iteration 1
 alpha1 = 0.1 #final value of the free randomization parameter alpha what alpha is going to for a value exponentionally depening on iteration t
 norm0 = 0   #first parameter for a normal (Gaussian) distribution 
 norm1 = 0.1  #second parameter for a normal (Gaussian) distribution #as we are looking at ints these are not normal gassuian
@@ -133,7 +133,7 @@ norm1 = 0.1  #second parameter for a normal (Gaussian) distribution #as we are l
 #-----------set up FF algorithm----------
 Result_10_tries = [[],[],[],[],[],[],[],[],[],[],[],[],[]]
 
-for i in range(10):
+for i in range(1):
 
     start = time.time() 
     alh = fa_new.fa(n = n, function = fitness_function, lb1 = lb1, ub1 = ub1, lb2 = lb2, ub2 = ub2, dimension = dimensions,
@@ -228,8 +228,8 @@ df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'fitness_fun
                                            'cost_charge', 'cost_O_n_M_fixed', 'cost_O_n_m_variable', 'Cashflow_total',
                                            'Cost_investment', 'Summed_charge_kWh', 'Summed_Discharge_kWh'])
 
-df.to_csv(r'Results\Firefly_case_1_ESS_NPV\ESS_power_NPV_etc\Firefly_case_ESS_10_gen.csv', index=False, )
-tf.to_csv(r'Results\Firefly_case_1_ESS_NPV\Charge_discharge_capacity\Firefly_case_ESS_10_gen_Sch_year_10.csv', index=False, )
+df.to_csv(r'Results\Firefly_case_1_ESS_NPV\ESS_power_NPV_etc\Firefly_case_ESS_5_gen.csv', index=False, )
+tf.to_csv(r'Results\Firefly_case_1_ESS_NPV\Charge_discharge_capacity\Firefly_case_ESS_5_gen_Sch_year_10.csv', index=False, )
 
 
 print("done")

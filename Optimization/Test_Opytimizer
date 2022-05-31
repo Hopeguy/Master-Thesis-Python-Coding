@@ -1,0 +1,36 @@
+import numpy as np
+
+from opytimizer import Opytimizer
+from opytimizer.core import Function
+from opytimizer.optimizers.swarm import PSO
+from opytimizer.spaces import SearchSpace
+from paramiko import Agent
+
+def sphere(x):
+    
+    return np.sum(x ** 2)
+
+n_agents = 20
+n_variables = 2
+lower_bound = [-10, -10]
+upper_bound = [10, 10]
+
+space = SearchSpace(n_agents, n_variables, lower_bound, upper_bound)
+optimizer = PSO()
+function = Function(sphere)
+
+opt = Opytimizer(space, optimizer, function,  save_agents=True)
+opt.start(n_iterations=10)
+
+best_agent_pos, best_agent_fit = opt.history.get_convergence("best_agent")
+print(f"Best agent (position, fit): ({best_agent_pos[:, -1]}, {best_agent_fit[-1]})")
+print(
+    f"Best agent (position, fit): ({opt.space.best_agent.position}, {opt.space.best_agent.fit})"
+)
+print(
+    f"Iter 4 - Best agent (position, fit): ({best_agent_pos[:, 3]}, {best_agent_fit[3]})"
+)
+
+
+agent_0_pos, agent_0_fit = opt.history.get_convergence("agents", index=0)
+print(f"Agent[0] (position, fit): ({agent_0_pos[:, -1]}, {agent_0_fit[-1]})")

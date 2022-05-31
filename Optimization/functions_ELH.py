@@ -114,6 +114,12 @@ def ESS_schedule(ESS_capacity_size, ESS_power,
 
 # -------------------------------------------------------
 
+def Residual_value_ELH(Interest_rate, ELH_power_cost, ELH_power, Lifetime_ELH, project_lifetime):
+    ELH_cost = ELH_power*ELH_power_cost
+    Monthly_value = npf.pmt(pv = ELH_cost, nper = Lifetime_ELH, rate = Interest_rate)
+    Resiudal_value = Monthly_value*(abs(Lifetime_ELH-project_lifetime))
+    return Resiudal_value
+
 def Peak_diff(Electricty_usage_pre_schedule, Schedule):
     """
     Electicity_usage_pre_schedule is the electricity usage before an battery have been installed
@@ -121,8 +127,8 @@ def Peak_diff(Electricty_usage_pre_schedule, Schedule):
     the Value will return the peak difference for each month that then can be used as a profit for installing the Battery
     """
 
-    New_electricity_usage_with_discharge = np.subtract(Electricty_usage_pre_schedule, Schedule[:,0]) #Schedule 0 is the discharge schedule
-    New_electricity_usage_with_discharge_and_charge = np.add(New_electricity_usage_with_discharge, Schedule[:,1]) #if we want to include the chargin also to the calculations
+    New_electricity_usage_with_discharge = np.subtract(Electricty_usage_pre_schedule, Schedule[:,1]) #Schedule 1 is the discharge schedule
+    New_electricity_usage_with_discharge_and_charge = np.add(New_electricity_usage_with_discharge, Schedule[:,0]) #if we want to include the chargin also to the calculations
 
 
     Monthly_max_pre = np.zeros(12)
@@ -145,6 +151,7 @@ def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
     Yearly energy out is an array with each year total output from ESS
     """
     cost_intrest = 0
+    
     for year, c in enumerate(Yearly_cost):
        cost_intrest += c/((1+discount_rate)**(year+1)) #as the enumerate counting start at 0, we add 1, at year zero we only have CAPEX
        
@@ -154,6 +161,7 @@ def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
        energy_intrest += w/((1+discount_rate)**(year+1))
 
     LCOS = (CAPEX + cost_intrest)/energy_intrest
+    
     return LCOS #returns LCOS in Euro/kWh
 
 def Fitness_NPV(discount_rate, cashflows):
@@ -169,26 +177,37 @@ def Fitness_NPV(discount_rate, cashflows):
 
 def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost,
                         Variable_O_and_M_cost, ESS_power, ELH_power, ELH_OPEX, Gas_cost,
-                        Heating_demand_after_ELH, Heating_demand_pre, Peak_diff, Peak_diff_cost): #Gives the profits after all yearly costs and profits
-    
-    profit_kWh = np.sum(schedule_discharge*demand_cost) #profit from selling electrcity at higher prices times
-    profit_peak_kW = np.sum(Peak_diff*Peak_diff_cost) #profit from difference in electricity demand (kW)
-    cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m_fixed = ESS_power*Fixed_O_and_M_cost   #Dependent on year or hourly use per year. 
-    cost_o_and_m_variable = np.sum(schedule_discharge*Variable_O_and_M_cost)
-    cost_OPEX_ELH = ELH_power*ELH_OPEX
-    profit_saved_heating = (np.sum(Heating_demand_pre) - np.sum(Heating_demand_after_ELH))*Gas_cost
-    cashflow_total =  (profit_kWh + profit_peak_kW + profit_saved_heating) - cost_charge - cost_o_and_m_fixed - cost_o_and_m_variable - cost_OPEX_ELH #This is the total cashflow after a year with all calculations included
-    #print("Cashflow: ", cashflow_total, "Profit_kWH: ", profit_kWh, "Profit_peak: ", profit_peak_kW, "Cost_charge: ", cost_charge, "cost o and m: ", cost_o_and_m_fixed, "cost o and m Variable: ", cost_o_and_m_variable, "Cost heating gas ", cost_heating)
-    return cashflow_total
+                        Heating_demand_after_ELH, Heating_demand_pre, Peak_diff, Peak_diff_cost, electricity_load_ELH): #Gives the profits after all yearly costs and profits
+
+    profit_kWh = abs(np.sum(schedule_discharge*demand_cost)) #profit made from discharge of the ESS at higher electricity cost
+    profit_peak_kW = abs(np.sum(Peak_diff*Peak_diff_cost)) #profit made form peak difference monthly using the ESS instead of using only grid
+    cost_charge = abs(np.sum(schedule_load*demand_cost)) #only cost for charging the unit
+    cost_o_and_m_fixed = abs(ESS_power*Fixed_O_and_M_cost)   #Dependent on year or hourly use per year. 
+    cost_o_and_m_variable = abs(np.sum(schedule_discharge*Variable_O_and_M_cost))
+    cost_OPEX_ELH = ELH_power*ELH_OPEX #Opex of Electrical heater yearly
+    Saved_cost_heating = ((np.sum(Heating_demand_pre) - np.sum(Heating_demand_after_ELH))*Gas_cost) #Saved money on gas heating
+    Heating_electricity_cost = np.sum(electricity_load_ELH*demand_cost) #Cost of using electricty to heat instead
+    profit_saved_heating_total = Saved_cost_heating - Heating_electricity_cost #Combined saved money on using electrical heating instead of gas
+    cashflow_total =  profit_kWh + profit_peak_kW + profit_saved_heating_total - cost_charge - cost_o_and_m_fixed - cost_o_and_m_variable - cost_OPEX_ELH#This is the total cashflow after a year with all calculations included
+    Divided_cost_profit = [profit_kWh, profit_peak_kW, profit_saved_heating_total, Saved_cost_heating, (-Heating_electricity_cost), (-cost_charge), (-cost_o_and_m_fixed), (-cost_o_and_m_variable), (-cost_OPEX_ELH), cashflow_total]
+    return [cashflow_total, Divided_cost_profit]
+
 
 def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost,
                  Variable_O_and_M_cost, ESS_power, ELH_power, ELH_OPEX): #Gives the profits after all yearly costs and profits
     
-
     cost_charge = np.sum(schedule_load*demand_cost) #only cost for charging the unit
-    cost_o_and_m = (ESS_power*Fixed_O_and_M_cost) + np.sum(schedule_discharge*Variable_O_and_M_cost) + (ELH_power*ELH_OPEX) #Dependent on year or hourly use per year. 
+    cost_o_and_m_fixed = (ESS_power*Fixed_O_and_M_cost) #Dependent on year or hourly use per year. 
+    cost_o_and_m_variable = np.sum(schedule_discharge*Variable_O_and_M_cost)
+    #cost_o_and_m_ELH = (ELH_power*ELH_OPEX) #not included
+    cost_yearly = cost_charge + cost_o_and_m_variable + cost_o_and_m_fixed #This is the total cost after a year with all parts included
     
-    cost_yearly = cost_charge + cost_o_and_m  #This is the total cost after a year with all parts included
+    Cost_divided = [cost_charge, cost_o_and_m_fixed, cost_o_and_m_variable, cost_yearly]
     
-    return cost_yearly
+    return [cost_yearly, Cost_divided]
+
+def Residual_value_ELH(Interest_rate, ELH_power_cost, ELH_power, Lifetime_ELH, project_lifetime):
+    ELH_cost = ELH_power*ELH_power_cost
+    Monthly_value = npf.pmt(pv = ELH_cost, nper = Lifetime_ELH, rate = Interest_rate)
+    Resiudal_value = Monthly_value*(abs(Lifetime_ELH-project_lifetime))
+    return Resiudal_value

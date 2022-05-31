@@ -127,8 +127,8 @@ def Peak_diff(Electricty_usage_pre_schedule, Schedule):
     the Value will return the peak difference for each month that then can be used as a profit for installing the Battery
     """
 
-    New_electricity_usage_with_discharge = np.subtract(Electricty_usage_pre_schedule, Schedule[:,0]) #Schedule 0 is the discharge schedule
-    New_electricity_usage_with_discharge_and_charge = np.add(New_electricity_usage_with_discharge, Schedule[:,1]) #if we want to include the chargin also to the calculations
+    New_electricity_usage_with_discharge = np.subtract(Electricty_usage_pre_schedule, Schedule[:,1]) #Schedule 1 is the discharge schedule
+    New_electricity_usage_with_discharge_and_charge = np.add(New_electricity_usage_with_discharge, Schedule[:,0]) #if we want to include the chargin also to the calculations
 
 
     Monthly_max_pre = np.zeros(12)
@@ -160,15 +160,18 @@ def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
        energy_intrest += w/((1+discount_rate)**(year+1))
 
     LCOS = (CAPEX + cost_intrest)/energy_intrest
-    return LCOS #returns LCOS in Euro/kWh
+
+    
+    return LCOS #returns LCOS in Euro/kWh in an list but only one value
 
 def Fitness_NPV(discount_rate, cashflows):
     """
     Rate is discount rate in %, 8% == 0.08
     cashflow is an array with the cashflows for each year (10)
     """
+    
     NPV = npf.npv(discount_rate, cashflows)  #numpy financial to calculate 
-
+    
     return NPV #In Euro
 
 

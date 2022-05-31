@@ -1,0 +1,458 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr  7 16:11:41 2022
+
+@author: jocke
+"""
+import numpy as np
+import pandas as pd
+import numpy_financial as npf
+import functions_ELH as fun
+import time
+import matplotlib.pyplot as plt
+
+from opytimizer import Opytimizer
+from opytimizer.core import Function
+from opytimizer.optimizers.swarm import FA
+from opytimizer.spaces import SearchSpace
+
+from operator import add
+
+
+def Electricity_heater_load(Power, Heating_load):
+    """"
+    Power in kW
+    Heating load in kWh (An array with 8760 hours)
+    Efficency set to 95% (Source needed)
+    Output is the new lower heating load that has been taken care of with the electrical heater (array of 8760 hours)
+    Electrical load from the electrical heater (array of 8760 hours)
+    """
+
+    global New_heating_load
+
+    # Depending on source but assumed to be 95% (Source  "UKSupplyCurve")
+    Efficency = 0.95
+    Electricity_load = np.zeros(8760)
+    New_heating_load = np.zeros(8760)
+    # goes through the array with the load demand
+    for count, load in enumerate(Heating_load):
+        if load < Power:  # if the load is less then the power of the electrical heater
+            # Electricity load is increase by the load divided by the efficency
+            Electricity_load[count] = load/Efficency
+            # as the load was lower then the power zero heating load is left this hour
+            New_heating_load[count] = 0
+        elif load > Power:
+            # When the load is higher than the Power of the electrical heater, the new electricty this hour is the power divided by the efficency
+            Electricity_load[count] = Power/Efficency
+            # The heat load this hour is the load minus the power that was removed by the electrical heater
+            New_heating_load[count] = load - Power
+
+    return Electricity_load, New_heating_load
+
+
+def fitness_func_NPV(solution):
+    """
+    Returns the NPV value (used as fitness value in FA)
+    """
+
+    global Electricity_heating_load
+    global cashflow_divided
+    global ESS_capacity, ESS_power
+    global Schedule_sum
+    global Schedule
+    global Schedule_capacity
+    global ESS_capacity_year
+    global Energy_hourly_use
+
+    ESS_capacity, ESS_power, ELH_power = solution[0]*8000, solution[1]*np.max(
+        total_energy_max), solution[2]*np.max(Heating_hourly_use)
+
+    # First we calculate the new electricity load and heating demand when an ELH is installed.
+    # array first is the electricity load from ELH, and second array is the new Heating load
+    Electricity_heating_load = Electricity_heater_load(
+        Power=ELH_power, Heating_load=Heating_hourly_use)
+    # adds the electricity load with the ELH electricity load
+    Energy_hourly_use = Electricity_load + Electricity_heating_load[0]
+
+    # First Year is just capex cost and negative as it is a cost
+    cashflow_each_year = [-((ESS_capacity_cost*ESS_capacity) +
+                            (ESS_power*ESS_power_cost) + ELH_power*ELH_power_cost)]
+    ESS_capacity_year = 0  # Starts with zero energy in the storage
+
+    cashflow_each_year = np.zeros(11)
+    # First Year is just capex cost and negative as it is a cost
+    cashflow_each_year[0] = -((ESS_capacity_cost *
+                              ESS_capacity) + (ESS_power*ESS_power_cost))
+    cashflow_divided = np.zeros(10)
+    Schedule_sum = np.zeros(2)
+    ESS_capacity_year = 0  # Starts with zero energy in the storage
+    # starts at year 1 and includes year 10 as the lifetime of ESS is 10 years (battery)
+    for year in range(10):
+
+        Schedule = fun.ESS_schedule(ESS_capacity_size=ESS_capacity, ESS_power=ESS_power,
+                                        Energy_hourly_cost=Energy_hourly_cost,
+                                        Average_median_cost_day=Average_median_cost_day,
+                                        Energy_hourly_use=Energy_hourly_use,
+                                        ESS_discharge_eff=ESS_discharge_eff, ESS_charge_eff=ESS_charge_eff, Year=year, ESS_capacity_prev_year=ESS_capacity_year)
+
+        # This calculates the cost of buying and using the ESS storage, as well as the profits of sell energy from it, and inputs that into an array for each year.
+        # This does not include the energy used by the user. (Aka the load demand), but the schedule is designed from that schedule
+        New_schedule = Schedule[0]
+        # Inputs the preveious years ess capacity to next years
+        ESS_capacity_year = Schedule[1]
+        Schedule_capacity = Schedule[2]
+        Peak_diff = fun.Peak_diff(
+            Electricty_usage_pre_schedule=Energy_hourly_use, Schedule=Schedule[0])
+        Cashflow_yearly = fun.cashflow_yearly_NPV(schedule_load=New_schedule[:, 0], schedule_discharge=New_schedule[:, 1], demand_cost=Energy_hourly_cost,
+                                                        Variable_O_and_M_cost=Variable_ESS_O_and_M_cost, Fixed_O_and_M_cost=Fixed_ESS_O_and_M_cost,
+                                                        ESS_power=ESS_power,  ELH_OPEX=ELH_OPEX, ELH_power=ELH_power, Gas_cost=Gas_cost,
+                                                        Heating_demand_after_ELH=Electricity_heating_load[1], Heating_demand_pre=Heating_load, Peak_diff=Peak_diff, Peak_diff_cost=Peak_cost,
+                                                        electricity_load_ELH= Electricity_heating_load[0])
+
+        # print(Cashflow_yearly[1])s
+        for count, i in enumerate(Cashflow_yearly[1]):
+            cashflow_divided[count] += i
+        # Charge shcedule summed up kWh
+        Schedule_sum[0]=np.sum(New_schedule[:, 0])
+        # Discharge summed up in kWh
+        Schedule_sum[1]=np.sum(New_schedule[:, 1])
+        
+        cashflow_each_year[year+1]=Cashflow_yearly[0]
+        if year == 9:
+            
+            Residual_value = abs(fun.Residual_value_ELH(Interest_rate= Discount_rate, ELH_power_cost=ELH_power_cost, ELH_power=ELH_power, Lifetime_ELH = 15, project_lifetime=10))
+            cashflow_each_year[year+1] += Residual_value
+
+
+    fitness=fun.Fitness_NPV(discount_rate = Discount_rate,
+                            cashflows = cashflow_each_year)
+
+    return -fitness  # negative as the FF algo want to minimize the fitness function
+
+# -------------------------------------------------------end of functions------------------------
+
+
+# ----------Gets the average cost for each day, and the hourly cost at each hour during the year--------
+
+Electricity_price_read= np.genfromtxt("sto-eur17.csv", delimiter = ",")  # Prices in EUR/MWh
+El_cost_year=[]
+El_cost_average_day=[]
+
+for i in range(365):
+    for k in Electricity_price_read[i][0:24]:
+        # Prices in Euro/kWh, by dividing by 1000, times 1.1 to get 2022 euro values due to inflation
+        El_cost_year.append((k/1000)*1.11)
+
+    # Prices in Euro/kwh that is why we are dividing by 1000, times 1.1 to get 2022 values
+    El_cost_average_day.append(((Electricity_price_read[i][24])/1000)*1.1)
+
+
+# --------------------Read load data for both Electricity and Heating--------
+Load_data_read = pd.read_csv("Load_data_electricit_heating_2017.csv", header = 0)  # Takes values from January, Empty data in 7976 set to 0
+Electricity_load_pd=Load_data_read["Electricty [kW]"]
+Heating_load_pd=Load_data_read["Heating demand [kW]"]
+
+Heating_load=np.zeros(8760)
+Electricity_load=np.zeros(8760)
+
+for count, i in enumerate(Heating_load_pd):
+    Heating_load[count]=i
+
+for count, i in enumerate(Electricity_load_pd):
+    Electricity_load[count]=i
+
+# --------------------------------------------------------------------------
+
+
+# ---------------Input values (non changable)-------------------------------
+# ---------------For Schedule inputs----------------------------------------
+
+Energy_hourly_cost=np.array(El_cost_year)  # Prices in Euro/kWh
+Average_median_cost_day=np.array(El_cost_average_day)
+Electricity_hourly_use=np.array(Electricity_load)
+Heating_hourly_use=np.array(Heating_load)
+ESS_charge_eff=0.9
+ESS_discharge_eff=0.9
+
+# Important to note that the maximum SoC for the battery is calculated in the schdule function
+# Only import is the Total max size that is also used for calculating the cost
+
+# ------For NPV/LCOE inputs -------------
+Lifetime_battery=10  # in years
+ESS_capacity_cost = 389.2   # in Euro(2022) per kWh (CAPEX) all cost included
+ESS_power_cost = 148.8  # in Euro(2022) per kW (all cost included)
+Fixed_ESS_O_and_M_cost=4.19  # in Euro(2022) per kW-year
+Variable_ESS_O_and_M_cost=0.488/1000 # in Euro(2022) per kWh-year
+Discount_rate=0.08  # 8 percent
+
+ELH_power_cost=331.2  # In Euro(2022) per kW "UKSupplyCurve" #Lifetime said to be 15 years
+ELH_OPEX=1.5  # In euro(2022) per kW-year
+Gas_cost= (30/1.1218)/293.07106944  # Euro/kWh   #1 mmBTU = 293.07106944 kWh, Gas cost 30 usd per million btu, change to euro: 1 euro is 1.1218 USD,
+                    # https://www.iea.org/data-and-statistics/charts/natural-gas-prices-in-europe-asia-and-the-united-states-jan-2020-february-2022
+Peak_cost=5.92/1.1218  # 5.92 dollar (2022) per kW (max per month) change to euro: 1 euro is 1.1218 USD january 1 2022
+
+# ------------Setup of parameters for FF algorithm------------
+
+
+# ------------- Add the heating and electricity together as the maximum possible ESSpower
+total_energy_max=[]
+for count, i in enumerate(Electricity_hourly_use):
+    total_energy_max.append(
+        Electricity_hourly_use[count] + Heating_hourly_use[count])
+
+# the FF algo want to minimize the fitness function!
+
+# -----------set up FF algorithm----------
+Result_10_tries = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+
+for i in range(10):
+
+    start=time.time()
+    n= 10  # number of agents (fireflies) Comparable to number of solution
+    lower_bound=[0.1/8000, 0.1/np.max(total_energy_max), 0.1/np.max(Heating_hourly_use)]  # first is Capacity, second is for Power they are multiplied with their constant in the fitness function aka 8000, np.max(...), lowest real value is 0.1
+    upper_bound=[8000/8000, np.max(total_energy_max)/np.max(total_energy_max), np.max(Heating_hourly_use)/np.max(Heating_hourly_use)]  # upper bound, first is for Capacity, second is for Power
+    n_variables=3  # search space dimension (for this case 2, one for ESS capcity and one for ESS power)
+    iteration= 200
+
+      # number of iterations the algorithm will run
+
+
+    Space=SearchSpace(n, n_variables = n_variables,
+                      lower_bound = lower_bound, upper_bound = upper_bound)
+    params={"alpha": 1, "beta": 0.5, "gamma": 1.0}
+    optimizer=FA(params = params)
+
+    fitness_function=Function(fitness_func_NPV)  # fitness function to be used
+
+    opt = Opytimizer(space = Space, optimizer = optimizer, function = fitness_function, save_agents =True)
+    alh=opt.start(n_iterations = iteration)
+    end=time.time()
+
+
+    cost_investment=-((ESS_capacity_cost*opt.space.best_agent.position[0]*8000) + (ESS_power_cost*opt.space.best_agent.position[1]*np.max(total_energy_max)) + ELH_power_cost*opt.space.best_agent.position[2]*np.max(Heating_hourly_use))  # Adds the investment cost
+
+    Result_10_tries[0].append(
+        opt.space.best_agent.position[0]*8000)  # Capacity
+    Result_10_tries[1].append(
+        opt.space.best_agent.position[1]*np.max(total_energy_max))  # Power
+    Result_10_tries[2].append(
+        opt.space.best_agent.position[2]*np.max(Heating_hourly_use))
+    # fittness function positive when looking for LCOS
+    Result_10_tries[3].append(-opt.space.best_agent.fit)
+    Result_10_tries[4].append(abs(end-start))  # Times
+    Result_10_tries[5].append(cashflow_divided[0])  # profit from selling kWh
+    Result_10_tries[6].append(cashflow_divided[1])  # profit from Peak_kW
+    Result_10_tries[7].append(cashflow_divided[2])  # Profit for saved heating total (saved minus cost of electricty for heating)
+    Result_10_tries[8].append(cashflow_divided[3]) # saved money on using electrical heating instead of gas
+    Result_10_tries[9].append(cashflow_divided[4]) # Cost of using electrical heating
+    Result_10_tries[10].append(cashflow_divided[5])  # cost from chargin
+    Result_10_tries[11].append(cashflow_divided[6])  # cost OnM fixed
+    Result_10_tries[12].append(cashflow_divided[7])  # Cost OnM Variable
+    Result_10_tries[13].append(cashflow_divided[8])  # OPEX ELH
+    Result_10_tries[14].append(cashflow_divided[9])  # Cashflow_total
+    Result_10_tries[15].append(cost_investment)  # cost investment
+    Result_10_tries[16].append(Schedule_sum[0])  # Charge energy to BESS
+    Result_10_tries[17].append(Schedule_sum[1])  # Discharge energy from BESS
+
+
+
+# array first is the electricity load from ELH, and second array is the new Heating load
+Electricity_heating_load = Electricity_heater_load(Power=opt.space.best_agent.position[2]*np.max(Heating_hourly_use), Heating_load=Heating_hourly_use)
+        # adds the electricity load with the ELH electricity load
+Energy_hourly_use = Electricity_load + Electricity_heating_load[0]
+
+Schedule = fun.ESS_schedule(ESS_capacity_size = (opt.space.best_agent.position[0][0]*8000),
+                             ESS_power =(opt.space.best_agent.position[1][0]*np.max(total_energy_max)),
+                                        Energy_hourly_cost = Energy_hourly_cost,
+                                        Average_median_cost_day = Average_median_cost_day,
+                                        Energy_hourly_use = Energy_hourly_use,
+                                        ESS_discharge_eff = ESS_discharge_eff,
+                                        ESS_charge_eff = ESS_charge_eff, Year = 10,
+                                        ESS_capacity_prev_year = ESS_capacity_year)
+
+Average_hourly_cost=[]
+for count, average in enumerate(Average_median_cost_day):
+    for i in range(24):
+        Average_hourly_cost.append(average)
+
+
+Charge_discharge=[]
+
+for count, hour_cost in enumerate(Energy_hourly_cost):
+    if hour_cost < Average_hourly_cost[count]:
+        Charge_discharge.append('Charge+++++')
+    else:
+        Charge_discharge.append('Discharge-----')
+
+Schedule_last_year = [[], [], [], [],[],[],[], [], []]
+Schedule_last_year[0]= Schedule[0][:, 0]  # Charge schedule (What is taken from grid)
+Schedule_last_year[1]= Schedule[0][:, 1]  # Discharge schedule (What is given to the using user, More is taken from the capacity storage bc of efficency losses)
+Schedule_last_year[2]=Schedule[2]  # Capacity schedule
+Schedule_last_year[3]= Energy_hourly_use  # Total Electricity
+Schedule_last_year[4]=np.array(Average_hourly_cost)  # Averagey hourly cost for electricy each day
+Schedule_last_year[5]=np.array(El_cost_year)  # Cost each hour for electricity
+Schedule_last_year[6]=Charge_discharge  # if we want to charge or discharge at this hour
+Schedule_last_year[7]=Electricity_heating_load[1]  # Remaining gas heating left
+Schedule_last_year[8]=Heating_hourly_use  # gas heating before ELH
+
+data_schedule={'charge': Schedule_last_year[0],
+                'discharge': Schedule_last_year[1],
+                'capacity': Schedule_last_year[2],
+                'Energy_use': Schedule_last_year[3],
+                'Average_daily_cost': Schedule_last_year[4],
+                'Energy_hourly_cost':Schedule_last_year[5],
+                'Charge_or_discharge': Schedule_last_year[6],
+                'Gas_heating_needed': Schedule_last_year[7],
+                'Gas_heating_before_ELH_installment': Schedule_last_year[8]}
+
+
+
+tf = pd.DataFrame(data_schedule, columns=['charge', 'discharge', 'capacity',
+                             'Energy_use', 'Average_daily_cost', 'Energy_hourly_cost',
+                              'Charge_or_discharge', 'Gas_heating_needed', 'Gas_heating_before_ELH_installment'])
+
+
+std_ESS_power = np.std(Result_10_tries[1]) 
+std_ESS_capacity = np.std(Result_10_tries[0])
+std_fitness_function = np.std(Result_10_tries[3])
+std_ELH_power = np.std(Result_10_tries[2])
+
+
+raw_data = {'ESS_power': Result_10_tries[1],
+            'ESS_capacity': Result_10_tries[0],
+            'ELH_power': Result_10_tries[2],
+            'fitness_function': Result_10_tries[3],
+            'Time': Result_10_tries[4],
+            'std_ESS_power': std_ESS_power,
+            'std_ESS_capacity': std_ESS_capacity,
+            'std_fitness_function': std_fitness_function,
+            'std_ELH_power': std_ELH_power,
+            'profit_kWh': Result_10_tries[5],
+            'profit_peak_kW': Result_10_tries[6],
+            'profit_saved_gas_heating_total': Result_10_tries[7],
+            'Saved_cost_heating': Result_10_tries[8],
+            'heating_cost_electricity': Result_10_tries[9],
+            'cost_charge': Result_10_tries[10],
+            'cost_O_n_M_fixed': Result_10_tries[11],
+            'cost_O_n_m_variable': Result_10_tries[12],
+            'OPEX_ELH': Result_10_tries[13],
+            'Cashflow_total': Result_10_tries[14],
+            'Cost_investment': Result_10_tries[15],
+            'Summed_charge_kWh': Result_10_tries[16],
+            'Summed_Discharge_kWh': Result_10_tries[17]}
+
+df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'ELH_power', 'fitness_function',
+                                           'Time', 'std_ESS_power', 'std_ESS_capacity', 'std_fitness_function',
+                                           'std_ELH_power', 'profit_kWh', 'profit_peak_kW',
+                                            'profit_saved_gas_heating_total', 'Saved_cost_heating', 'heating_cost_electricity',
+                                           'cost_charge', 'cost_O_n_M_fixed', 'cost_O_n_m_variable', 'OPEX_ELH', 'Cashflow_total',
+                                           'Cost_investment', 'Summed_charge_kWh', 'Summed_Discharge_kWh'])
+
+save_file_name_std = f"Results\Firefly_case_3_ESS_NPV\ESS_power_NPV_etc\Firefly_case_3_ESS_{iteration}_gen.csv"
+
+save_file_name_schedule = f"Results\Firefly_case_3_ESS_NPV\Charge_discharge_capacity\Firefly_case_3_ESS_{iteration}_gen_Sch_year_10.csv"
+
+df.to_csv(save_file_name_std, index=False, )
+tf.to_csv(save_file_name_schedule, index=False, )
+
+
+best_agent_pos, best_agent_fit = opt.history.get_convergence("best_agent")
+
+print(
+    "Best agent Capacity, Power, ELH_Power, Fitness", opt.space.best_agent.position[0][0]*8000,
+    opt.space.best_agent.position[1][0]*np.max(total_energy_max),
+     opt.space.best_agent.position[2][0]*np.max(Heating_hourly_use), -best_agent_fit
+)
+
+# Only plots the last of the ten times it is run
+
+agent_pos_0, agent_fit_0 = opt.history.get_convergence("agents", index =0)
+agent_pos_1, agent_fit_1 = opt.history.get_convergence("agents", index =1)
+agent_pos_2, agent_fit_2 = opt.history.get_convergence("agents", index =2)
+agent_pos_3, agent_fit_3 = opt.history.get_convergence("agents", index =3)
+agent_pos_4, agent_fit_4 = opt.history.get_convergence("agents", index =4)
+agent_pos_5, agent_fit_5 = opt.history.get_convergence("agents", index =5)
+agent_pos_6, agent_fit_6 = opt.history.get_convergence("agents", index =6)
+agent_pos_7, agent_fit_7 = opt.history.get_convergence("agents", index =7)
+agent_pos_8, agent_fit_8 = opt.history.get_convergence("agents", index =8)
+agent_pos_9, agent_fit_9 = opt.history.get_convergence("agents", index =9)
+
+
+# print("Agent_0", agent_pos_0, agent_fit_0)
+# print("Agent_1", agent_pos_1, agent_fit_1)
+
+
+
+plt.figure(1)
+plt.xlabel("Iteration")
+plt.ylabel("Capacity [kWh]")
+plt.title("FF case 3: BESS capacity when optimizing for NPV")
+plt.plot(range(iteration), agent_pos_0[0]*8000, color = 'green')
+plt.plot(range(iteration), agent_pos_1[0]*8000, color = 'red')
+plt.plot(range(iteration), agent_pos_2[0]*8000, color = 'blue')
+plt.plot(range(iteration), agent_pos_3[0]*8000, color = 'yellow')
+plt.plot(range(iteration), agent_pos_4[0]*8000, color = 'black')
+plt.plot(range(iteration), agent_pos_5[0]*8000, color = 'magenta')
+plt.plot(range(iteration), agent_pos_6[0]*8000, color = 'lightgreen')
+plt.plot(range(iteration), agent_pos_7[0]*8000, color = 'olive')
+plt.plot(range(iteration), agent_pos_8[0]*8000, color = 'orange')
+plt.plot(range(iteration), agent_pos_9[0]*8000, color = 'chocolate')
+save_file_name_capacity = f'Results\\Pictures_etc\\Firefly-case-3-NPV-convergence\\Firefly_Case_3_NPV_convergence_capacity_iteration_{iteration}.jpeg'
+plt.savefig(save_file_name_capacity, dpi=200, bbox_inches = "tight")
+plt.show
+
+plt.figure(2)
+plt.xlabel("Iteration")
+plt.ylabel("BESS Power [kW]")
+plt.title("FF case 3: BESS power when optimizing for NPV")
+plt.plot(range(iteration), agent_pos_0[1]*np.max(Energy_hourly_use), color = 'green')
+plt.plot(range(iteration), agent_pos_1[1]*np.max(Energy_hourly_use), color = 'red')
+plt.plot(range(iteration), agent_pos_2[1]*np.max(Energy_hourly_use), color = 'blue')
+plt.plot(range(iteration), agent_pos_3[1]*np.max(Energy_hourly_use), color = 'yellow')
+plt.plot(range(iteration), agent_pos_4[1]*np.max(Energy_hourly_use), color = 'black')
+plt.plot(range(iteration), agent_pos_5[1]*np.max(Energy_hourly_use), color = 'magenta')
+plt.plot(range(iteration), agent_pos_6[1]*np.max(Energy_hourly_use), color = 'lightgreen')
+plt.plot(range(iteration), agent_pos_7[1]*np.max(Energy_hourly_use), color = 'olive')
+plt.plot(range(iteration), agent_pos_8[1]*np.max(Energy_hourly_use), color = 'orange')
+plt.plot(range(iteration), agent_pos_9[1]*np.max(Energy_hourly_use), color = 'chocolate')
+save_file_name_power = f'Results\\Pictures_etc\\Firefly-case-3-NPV-convergence\\Firefly_Case_3_NPV_convergence_power_iteration_{iteration}.jpeg'
+plt.savefig(save_file_name_power, dpi=200, bbox_inches = "tight")
+plt.show
+
+
+plt.figure(3)
+plt.xlabel("Iteration")
+plt.ylabel("ELH Power [kWh]")
+plt.title("FF case 3: ELH power when optimizing for NPV")
+plt.plot(range(iteration), agent_pos_0[2]*np.max(Heating_hourly_use), color = 'green')
+plt.plot(range(iteration), agent_pos_1[2]*np.max(Heating_hourly_use), color = 'red')
+plt.plot(range(iteration), agent_pos_2[2]*np.max(Heating_hourly_use), color = 'blue')
+plt.plot(range(iteration), agent_pos_3[2]*np.max(Heating_hourly_use), color = 'yellow')
+plt.plot(range(iteration), agent_pos_4[2]*np.max(Heating_hourly_use), color = 'black')
+plt.plot(range(iteration), agent_pos_5[2]*np.max(Heating_hourly_use), color = 'magenta')
+plt.plot(range(iteration), agent_pos_6[2]*np.max(Heating_hourly_use), color = 'lightgreen')
+plt.plot(range(iteration), agent_pos_7[2]*np.max(Heating_hourly_use), color = 'olive')
+plt.plot(range(iteration), agent_pos_8[2]*np.max(Heating_hourly_use), color = 'orange')
+plt.plot(range(iteration), agent_pos_9[2]*np.max(Heating_hourly_use), color = 'chocolate')
+save_file_name_capacity = f'Results\\Pictures_etc\\Firefly-case-3-NPV-convergence\\Firefly_Case_3_NPV_convergence_capacity_iteration_{iteration}.jpeg'
+plt.savefig(save_file_name_capacity, dpi=200, bbox_inches = "tight")
+plt.show
+
+plt.figure(4)
+plt.xlabel("Iteration")
+plt.ylabel("NPV [Euro]")
+plt.title("Firefly Case 3: NPV")
+plt.plot(range(iteration), -agent_fit_0, color = 'green')
+plt.plot(range(iteration), -agent_fit_1, color = 'red')
+plt.plot(range(iteration), -agent_fit_2, color = 'blue')
+plt.plot(range(iteration), -agent_fit_3, color = 'yellow')
+plt.plot(range(iteration), -agent_fit_4, color = 'black')
+plt.plot(range(iteration), -agent_fit_5, color = 'magenta')
+plt.plot(range(iteration), -agent_fit_6, color = 'lightgreen')
+plt.plot(range(iteration), -agent_fit_7, color = 'olive')
+plt.plot(range(iteration), -agent_fit_8, color = 'orange')
+plt.plot(range(iteration), -agent_fit_9, color = 'chocolate')
+
+save_file_name_NPV = f"Results\\Pictures_etc\\Firefly-case-3-NPV-convergence\\Firefly_Case_3_NPV_convergence_fitness_iteration_{iteration}.jpeg"
+plt.savefig(save_file_name_NPV, dpi=200, bbox_inches = "tight")
+plt.show

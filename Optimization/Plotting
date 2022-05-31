@@ -1,0 +1,100 @@
+
+from ast import Load
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+iter_5 = np.empty((16,10)) #First array is power, second is Capacity, last is NPV
+iter_10 = np.empty((16,10)) #First array is power, second is Capacity, last is NPV
+iter_25 = np.empty((16,10)) #First array is power, second is Capacity, last is NPV
+iter_50 = np.empty((16,10)) #First array is power, second is Capacity, last is NPV
+iter_75 = np.empty((16,10)) #First array is power, second is Capacity, last is NPV
+iter_100 = np.empty((16,10)) #First array is power, second is Capacity, last is NPV
+iter_200 = np.empty((16,10)) #First array is power, second is Capacity, last is NPV
+
+load_iteration_5 = pd.read_csv('Results\Pygad_case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_5_gen.csv')
+Iteration_5_NPV = [load_iteration_5["ESS_power"], load_iteration_5["ESS_capacity"], load_iteration_5["fitness_function"], load_iteration_5["std_fitness_function"]]
+for count, i in enumerate(Iteration_5_NPV):
+    for count2, k in enumerate(i):
+        iter_5[count][count2] = k
+
+load_iteration_10 = pd.read_csv('Results\Pygad_case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_10_gen.csv')
+Iteration_10_NPV = [load_iteration_10["ESS_power"], load_iteration_10["ESS_capacity"], load_iteration_10["fitness_function"], load_iteration_10["std_fitness_function"]]
+for count, i in enumerate(Iteration_10_NPV):
+    for count2, k in enumerate(i):
+        iter_10[count][count2] = k
+
+load_iteration_25 = pd.read_csv('Results\Pygad_case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_25_gen.csv')
+Iteration_25_NPV = [load_iteration_25["ESS_power"], load_iteration_25["ESS_capacity"], load_iteration_25["fitness_function"], load_iteration_25["std_fitness_function"]]
+for count, i in enumerate(Iteration_25_NPV):
+    for count2, k in enumerate(i):
+        iter_25[count][count2] = k
+
+load_iteration_50 = pd.read_csv('Results\Pygad_case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_50_gen.csv')
+Iteration_50_NPV = [load_iteration_50["ESS_power"], load_iteration_50["ESS_capacity"], load_iteration_50["fitness_function"], load_iteration_50["std_fitness_function"]]
+for count, i in enumerate(Iteration_50_NPV):
+    for count2, k in enumerate(i):
+        iter_50[count][count2] = k
+
+load_iteration_75 = pd.read_csv('Results\Pygad_case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_75_gen.csv')
+Iteration_75_NPV = [load_iteration_75["ESS_power"], load_iteration_75["ESS_capacity"], load_iteration_75["fitness_function"], load_iteration_75["std_fitness_function"]]
+for count, i in enumerate(Iteration_75_NPV):
+    for count2, k in enumerate(i):
+        iter_75[count][count2] = k
+
+load_iteration_100 = pd.read_csv('Results\Pygad_case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_100_gen.csv')
+Iteration_100_NPV = [load_iteration_100["ESS_power"], load_iteration_100["ESS_capacity"], load_iteration_100["fitness_function"], load_iteration_100["std_fitness_function"]]
+for count, i in enumerate(Iteration_100_NPV):
+    for count2, k in enumerate(i):
+        iter_100[count][count2] = k
+
+
+load_iteration_200 = pd.read_csv('Results\Pygad_case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_ESS_200_gen.csv')
+Iteration_200_NPV = [load_iteration_200["ESS_power"], load_iteration_200["ESS_capacity"], load_iteration_200["fitness_function"], load_iteration_200["std_fitness_function"]]
+for count, i in enumerate(Iteration_200_NPV):
+    for count2, k in enumerate(i):
+        iter_200[count][count2] = k
+
+
+Combined = [iter_5, iter_10, iter_25, iter_50, iter_75, iter_100, iter_200]
+iterations = np.array([5, 10, 25, 50, 75, 100, 200])
+All = [(iter_10,'^', 'r', '10 gen'),(iter_50,'p', 'm', '50 gen'), (iter_100, 's', 'y', '100 gen '), (iter_200, 'o', 'b', '200 gen')]
+
+fig1 = plt.figure(1)
+ax = fig1.add_subplot(projection='3d')
+
+for t, m, c, label in All:
+    xs = t[0]
+    ys = t[1]
+    zs = t[2]
+    ax.scatter(xs, ys, zs, marker = m, c = c, label = label)
+fig1.tight_layout()
+fig1.subplots_adjust(right=0.9)
+ax.legend(loc='upper left', bbox_to_anchor=(1.15, 1), fontsize=12)
+ax.view_init(30, 60)
+ax.set_xlabel('Power kW')
+ax.set_ylabel('Capacity kWh')
+ax.set_zlabel('Fittness NPV', labelpad=10)
+ax.set_title("Optimal NPV depending on Iterations")
+
+plt.savefig('Results\Pictures_etc\Case_2_NPV_of_gen.jpeg', dpi=300, bbox_inches = "tight")
+plt.show()
+plt.close(fig1)
+
+std_npv = np.zeros(7)
+for count,iter in enumerate(Combined):
+    std_npv[count] = iter[3][0]
+
+fig2= plt.figure(2)
+plt.plot(iterations, std_npv)
+plt.xlabel("Iterations")
+plt.ylabel("STD NPV")
+plt.title("STD of NPV depdning on num of Iterations")
+#ax2.plot(iterations, std_npv)
+#ax2.set(xlim=(0,200),  xticks=np.arange(0, 200))
+#fig2.set_xlabel("Iterations")
+#fig2.set_ylabel("STD NPV")
+
+
+
+plt.savefig('Results\Pictures_etc\Case_2_STD_of_NPV.jpeg', dpi=200, bbox_inches = "tight")
+plt.show()

@@ -14,6 +14,10 @@ Case2_GA_NPV, Case2_GA_capcity_NPV, Case2_GA_Power_NPV, Case2_GA_time_NPV  = np.
 Case2_GA_LCOS, Case2_GA_capcity_LCOS, Case2_GA_Power_LCOS, Case2_GA_time_LCOS  = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
 Case2_FF_NPV, Case2_FF_capcity_NPV, Case2_FF_Power_NPV, Case2_FF_time_NPV  = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
 Case2_FF_LCOS, Case2_FF_capcity_LCOS, Case2_FF_Power_LCOS, Case2_FF_time_LCOS  = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
+Case2_GA_Capacity_NPV_STD, Case2_GA_Power_NPV_STD, Case2_GA_Capacity_LCOS_STD, Case2_GA_Power_LCOS_STD, = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
+Case2_FF_Capacity_NPV_STD, Case2_FF_Power_NPV_STD, Case2_FF_Capacity_LCOS_STD, Case2_FF_Power_LCOS_STD, = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
+
+
 
 
 Case3_GA_NPV, Case3_GA_capcity_NPV, Case3_GA_Power_NPV, Case3_GA_time_NPV, Case3_GA_ELH_power_NPV  = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
@@ -46,6 +50,20 @@ for count, i in enumerate(iterations):
     Case2_FF_capcity_LCOS[count] = data.iloc[13][f'{i}']
     Case2_FF_Power_LCOS[count] = data.iloc[14][f'{i}']
     Case2_FF_time_LCOS[count] = data.iloc[15][f'{i}']
+
+    #FOR CASE 2 GA STD
+    Case2_GA_Capacity_NPV_STD[count] = data.iloc[52][f'{i}']
+    Case2_GA_Power_NPV_STD[count] = data.iloc[53][f'{i}']
+    Case2_GA_Capacity_LCOS_STD[count] = data.iloc[54][f'{i}']
+    Case2_GA_Power_LCOS_STD[count] = data.iloc[55][f'{i}']
+
+    #For Case 2 FF STD
+    Case2_FF_Capacity_NPV_STD[count] = data.iloc[56][f'{i}']
+    Case2_FF_Power_NPV_STD[count] = data.iloc[57][f'{i}']
+    Case2_FF_Capacity_LCOS_STD[count] = data.iloc[58][f'{i}']
+    Case2_FF_Power_LCOS_STD[count] = data.iloc[59][f'{i}']
+
+
 
 for count, i in enumerate(iterations):
     #For GA Case 3 NPV
@@ -87,6 +105,7 @@ line2, = ax4.plot(iterations, Case2_FF_NPV, label="FF NPV", linestyle='dotted', 
 
 ax4.set_xlabel('Iterations')
 ax4.set_ylabel('NPV [EURO]', color='blue')
+ax4.grid()
 
 ax4_2 = ax4.twinx()
 ax4_2.set_ylabel("LCOS [Euro/kWh]", color = 'red')
@@ -109,6 +128,7 @@ line2, = ax5.plot(iterations, Case3_FF_NPV, label="FF NPV", linestyle='dotted', 
 
 ax5.set_xlabel('Iterations')
 ax5.set_ylabel('NPV [EURO]', color='blue')
+ax5.grid()
 
 ax5_2 = ax5.twinx()
 ax5_2.set_ylabel("LCOS [Euro/kWh]", color = 'red')
@@ -164,6 +184,7 @@ ax6.set_xlabel('Iterations')
 ax6_2 = ax6.twinx()
 ax6_2.set_ylabel("kWh or kW")
 ax6.set_xticks(iterations_num)
+ax6.grid()
 
 ax6_2.scatter(Scatter_X_all, Scatter_Capacity, label = "BESS Capacity [kWh]", color = "red") #plots the Capacity scatter
 ax6_2.scatter(Scatter_X_all, Scatter_Power, label = "BESS Power [kW]", color = "magenta")     #Plots the BESS power scatter
@@ -217,6 +238,7 @@ ax7.set_xlabel('Iterations')
 ax7_2 = ax7.twinx()
 ax7_2.set_ylabel("kWh or kW")
 ax7.set_xticks(iterations_num)
+ax7.grid()
 
 
 ax7_2.scatter(Scatter_X_all, Scatter_Capacity, label = "BESS Capacity [kWh]", color = "red") #plots the Capacity scatter
@@ -269,7 +291,7 @@ ax8.set_xlabel('Iterations')
 ax8_2 = ax8.twinx()
 ax8_2.set_ylabel("kWh or kW")
 ax8.set_xticks(iterations_num)
-
+ax8.grid()
 
 ax8_2.scatter(Scatter_X_all, Scatter_Capacity, label = "BESS Capacity [kWh]", color = "red") #plots the Capacity scatter
 ax8_2.scatter(Scatter_X_all, Scatter_Power, label = "BESS Power [kW]", color = "magenta")     #Plots the BESS power scatter
@@ -321,6 +343,7 @@ ax9.set_xlabel('Iterations')
 ax9_2 = ax9.twinx()
 ax9_2.set_ylabel("kWh or kW")
 ax9.set_xticks(iterations_num)
+ax9.grid()
 
 
 ax9_2.scatter(Scatter_X_all, Scatter_Capacity, label = "BESS Capacity [kWh]", color = "red") #plots the Capacity scatter
@@ -332,3 +355,39 @@ ax9_2.legend(loc='right', bbox_to_anchor=(1.54, 0.8))
 plt.title("Case 3 LCOS FF: Capacity, Power and ELH Power vs Iterations")
 plt.savefig('Results\Pictures_etc\Compiled Results\Case-3-FF\Case3-LCOS-FF-Scatter-Convergence.jpeg', dpi=300, bbox_inches = "tight")
 plt.show
+
+
+fig10, ax10 = plt.subplots()
+
+
+ax10.set_ylabel("Capacity or Power [kWh or kW]")
+ax10.set_xlabel("Iterations")
+ax10.grid()
+
+ax10.plot(iterations_num, Case2_GA_capcity_NPV, label = "Capacity GA [kWh]", color = "red")
+ax10.plot(iterations_num, Case2_GA_Power_NPV, label = "Power GA [kW]", color = "navy")
+ax10.plot(iterations_num, Case2_FF_capcity_NPV, label = "Capacity FF [kWh]", color = "black")
+ax10.plot(iterations_num, Case2_FF_Power_NPV, label = "Power FF [kW]", color = "green")
+
+plt.title("Case 2 NPV, Average Capacity and Power")
+ax10.legend(loc='right', bbox_to_anchor=(1.42, 0.8))
+plt.savefig('Results\Pictures_etc\Compiled Results\Case-2-combined\Capcaity-and-Power-NPV.jpeg', dpi=300, bbox_inches = "tight")
+plt.show()
+
+fig11, ax11 = plt.subplots()
+
+
+ax11.set_ylabel("Capacity or Power [kWh or kW]")
+ax11.set_xlabel("Iterations")
+ax11.grid()
+
+
+ax11.plot(iterations_num, Case2_GA_capcity_LCOS, label = "Capacity GA [kWh]", color = "red")
+ax11.plot(iterations_num, Case2_GA_Power_LCOS, label = "Power GA [kW]", color = "navy")
+ax11.plot(iterations_num, Case2_FF_capcity_LCOS, label = "Capacity FF [kWh]", color = "black")
+ax11.plot(iterations_num, Case2_FF_Power_LCOS, label = "Power FF [kW]", color = "green")
+ax11.legend(loc='right', bbox_to_anchor=(1.42, 0.8))
+plt.title("Case 2 LCOS, Average Capacity and Power")
+plt.savefig('Results\Pictures_etc\Compiled Results\Case-2-combined\Capcaity-and-Power-LCOS.jpeg', dpi=300, bbox_inches = "tight")
+plt.show()
+

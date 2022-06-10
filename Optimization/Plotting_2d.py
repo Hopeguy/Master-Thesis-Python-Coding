@@ -391,3 +391,6 @@ plt.title("Case 2 LCOS, Average Capacity and Power")
 plt.savefig('Results\Pictures_etc\Compiled Results\Case-2-combined\Capcaity-and-Power-LCOS.jpeg', dpi=300, bbox_inches = "tight")
 plt.show()
 
+
+
+

@@ -126,3 +126,39 @@ ax3.legend(loc='right', bbox_to_anchor=(1.4, 0.72))
 
 plt.savefig('Results\Pictures_etc\Compiled Results\TIME-STD-AlL-CASES-LCOS-NPV.jpeg', dpi=300, bbox_inches = "tight")
 plt.show
+
+
+fig4, (ax4, ax5) = plt.subplots(1,2, figsize=(9, 4))
+fig4.suptitle("Time and STD for NPV and LCOS vs Iterations")
+
+ax4.grid()
+ax4.set_xlabel('Iterations')
+ax4.set_ylabel('Time [Seconds]', color='black')
+
+line1, = ax4.plot(iterations, Case2_GA_NPV_TIME,  label="Case 2 GA NPV", linestyle='dashed', color = "red")
+line2, = ax4.plot(iterations, Case2_FF_NPV_TIME, label="Case 2 FF NPV", linestyle='dotted', color = "cyan")
+line3, = ax4.plot(iterations, Case3_GA_NPV_TIME, label = "Case 3 GA NPV", linewidth = 1, color = 'lawngreen')
+line4, = ax4.plot(iterations, Case3_FF_NPV_TIME, label = "Case 3 FF NPV", linestyle ='dashdot', color = 'black')
+
+line5, = ax4.plot(iterations, Case2_GA_LCOS_TIME, label="Case 2 GA LCOS", linestyle = 'dashed', color='salmon')
+line6, = ax4.plot(iterations, Case2_FF_LCOS_TIME, label="Case 2 FF LCOS", linestyle ='dotted', color= 'navy')
+line7, = ax4.plot(iterations, Case3_GA_LCOS_TIME, label="Case 3 GA LCOS", linewidth = 1, color= 'lime')
+line8, = ax4.plot(iterations, Case3_FF_LCOS_TIME, label="Case 3 FF LCOS", linestyle ='dashdot', color= 'grey')
+
+ax5.set_xlabel('Iterations')
+ax5.set_ylabel('STD Time [Seconds]', color='black')
+ax5.grid()
+ax5.set_yscale("log")
+
+line1, = ax5.plot(iterations, Case2_GA_NPV_TIME_STD,  label="Case 2 GA NPV", linestyle='dashed', color = "red")
+line2, = ax5.plot(iterations, Case2_FF_NPV_TIME_STD, label="Case 2 FF NPV", linestyle='dotted', color = "cyan")
+line3, = ax5.plot(iterations, Case3_GA_NPV_TIME_STD, label = "Case 3 GA NPV", linewidth = 1, color = 'lawngreen')
+line4, = ax5.plot(iterations, Case3_FF_NPV_TIME_STD, label = "Case 3 FF NPV", linestyle ='dashdot', color = 'black')
+
+line5, = ax5.plot(iterations, Case2_GA_LCOS_TIME_STD, label="Case 2 GA LCOS", linestyle = 'dashed', color='salmon')
+line6, = ax5.plot(iterations, Case2_FF_LCOS_TIME_STD, label="Case 2 FF LCOS", linestyle ='dotted', color= 'navy')
+line7, = ax5.plot(iterations, Case3_GA_LCOS_TIME_STD, label="Case 3 GA LCOS", linewidth = 1, color= 'lime')
+line8, = ax5.plot(iterations, Case3_FF_LCOS_TIME_STD, label="Case 3 FF LCOS", linestyle ='dashdot', color= 'grey')
+
+ax5.legend(loc='right', bbox_to_anchor=(1.6, 0.72))
+plt.savefig('Results\Pictures_etc\Compiled Results\TIME-STD-AlL-CASES-LCOS-NPV-COMBINED.jpeg', dpi=300, bbox_inches = "tight")

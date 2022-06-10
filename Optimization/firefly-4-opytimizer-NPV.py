@@ -109,8 +109,9 @@ ESS_discharge_eff = 0.9
 
 # ------For NPV/LCOE inputs -------------
 Lifetime_battery = 10  # in years
-ESS_capacity_cost = 427.31   # in Euro(2022) per kWh (CAPEX) all cost included
-ESS_power_cost = 1710.2  # in Euro(2022) per kW (all cost included)
+Sensitivit_factor = 1.2
+ESS_capacity_cost = 389.2#*Sensitivit_factor   # in Euro(2022) per kWh (CAPEX) all cost included
+ESS_power_cost = 148.8#*Sensitivit_factor  # in Euro(2022) per kW (all cost included)
 Fixed_ESS_O_and_M_cost = 4.19  # in Euro(2022) per kW-year
 Variable_ESS_O_and_M_cost = 0.488/1000 # in Euro(2022) per kWh-year 
 Discount_rate = 0.08 #8 percent
@@ -151,8 +152,8 @@ for i in range(10):
     
     cost_investment = -(ESS_capacity_cost*opt.space.best_agent.position[0]*8000) - (ESS_power_cost*opt.space.best_agent.position[1]*np.max(Energy_hourly_use))  #Adds the investment cost
     
-    Result_10_tries[0].append(opt.space.best_agent.position[0]*8000) #Capacity
-    Result_10_tries[1].append(opt.space.best_agent.position[1]*np.max(Energy_hourly_use)) #Power
+    Result_10_tries[0].append(opt.space.best_agent.position[0][0]*8000) #Capacity
+    Result_10_tries[1].append(opt.space.best_agent.position[1][0]*np.max(Energy_hourly_use)) #Power
     Result_10_tries[2].append(-opt.space.best_agent.fit) #fittness function positive when looking for LCOS
     Result_10_tries[3].append(abs(end-start)) #Times
     Result_10_tries[4].append(cashflow_divided[0]) #profit from selling kWh
@@ -161,7 +162,7 @@ for i in range(10):
     Result_10_tries[7].append(cashflow_divided[3])  #cost OnM fixed
     Result_10_tries[8].append(cashflow_divided[4])  #Cost OnM Variable
     Result_10_tries[9].append(cashflow_divided[5])  #Cashflow_total
-    Result_10_tries[10].append(cost_investment) #cost investment
+    Result_10_tries[10].append(cost_investment[0]) #cost investment
     Result_10_tries[11].append(Schedule_sum[0]) #Charge energy to BESS
     Result_10_tries[12].append(Schedule_sum[1]) #Discharge energy from BESS
 
@@ -237,6 +238,12 @@ df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'fitness_fun
 save_file_name_std = f"Results\Firefly_case_2_ESS_NPV\ESS_power_NPV_etc\Firefly_case_2_ESS_NPV_{iteration}_gen.csv"
 
 save_file_name_schedule = f"Results\Firefly_case_2_ESS_NPV\Charge_discharge_capacity\Firefly_case_2_ESS_NPV_{iteration}_gen_Sch_year_10.csv"
+
+
+save_file_name_std_Sensitivity = f"Results\Sensitivity_analysis_case_2\Firefly\Firefly_case_2_ESS_NPV_{iteration}_gen_Sensitivity_+20%.csv"
+
+save_file_name_schedule_Sensitivity = f"Results\Sensitivity_analysis_case_2\Firefly\Firefly_case_2_ESS_NPV_{iteration}_gen_Sch_year_10_Sensitivity_+20%.csv"
+
 
 df.to_csv(save_file_name_std, index=False, )
 tf.to_csv(save_file_name_schedule, index=False, )

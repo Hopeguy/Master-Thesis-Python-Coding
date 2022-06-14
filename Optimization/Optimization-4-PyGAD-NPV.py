@@ -94,8 +94,9 @@ ESS_discharge_eff = 0.9
 
 # ------For NPV/LCOE inputs -------------
 Lifetime_battery = 10  # in years
-ESS_capacity_cost = 389.2   # in Euro(2022) per kWh (CAPEX) all cost included
-ESS_power_cost = 148.8  # in Euro(2022) per kW (all cost included)
+sensitivity_factor = 0.8
+ESS_capacity_cost = 389.2#*sensitivity_factor   # in Euro(2022) per kWh (CAPEX) all cost included
+ESS_power_cost = 148.8#*sensitivity_factor  # in Euro(2022) per kW (all cost included)
 Fixed_ESS_O_and_M_cost = 4.19  # in Euro(2022) per kW-year
 Variable_ESS_O_and_M_cost = 0.488/1000 # in Euro(2022) per kWh-year 
 Discount_rate = 0.08 #8 percent   
@@ -246,6 +247,9 @@ df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'fitness_fun
 
 save_file_name_std = f"Results\Pygad_Case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_2_NPV_ESS_{num_generations}_gen.csv"
 save_file_name_schedule = f"Results\Pygad_Case_2_ESS_NPV\Charge_discharge_capacity\Pygad_case_2_NPV_ESS_{num_generations}_gen_Sch_year_10.csv"
+
+save_file_name_std_sensitivty = f"Results\Sensitivity_analysis_case_2\Pygad\Pygad_case_2_NPV_ESS_{num_generations}_gen_sensitivity_-20%.csv"
+save_file_name_schedule_sensitivity = f"Results\Sensitivity_analysis_case_2\Pygad\Pygad_case_2_NPV_ESS_{num_generations}_gen_Sch_year_10_sensitivity_-20%.csv"
 
 df.to_csv(save_file_name_std, index=False, )
 tf.to_csv(save_file_name_schedule, index=False, )

@@ -134,7 +134,7 @@ for i in range(10):
     lower_bound = [0.1/8000, 0.1/np.max(Energy_hourly_use)]  #first is Capacity, second is for Power they are multiplied with their constant in the fitness function aka 8000, np.max(...), lowest real value is 0.1
     upper_bound = [8000/8000, np.max(Energy_hourly_use)/np.max(Energy_hourly_use)]  #upper bound, first is for Capacity, second is for Power we look here between 1 but in the fitness function these values are times the respective max value
     n_variables = 2 #search space dimension (for this case 2, one for ESS capcity and one for ESS power)
-    iteration = 200  #number of iterations the algorithm will run
+    iteration = 200 #number of iterations the algorithm will run
 
     
      

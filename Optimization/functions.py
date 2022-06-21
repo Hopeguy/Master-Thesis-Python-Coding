@@ -181,8 +181,8 @@ def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_
     profit_kWh = abs(np.sum(schedule_discharge*demand_cost)) #profit made from discharge of the ESS at higher electricity cost
     profit_peak_kW = abs(np.sum(Peak_diff*Peak_diff_cost)) #profit made form peak difference monthly using the ESS instead of using only grid
     cost_charge = abs(np.sum(schedule_load*demand_cost)) #only cost for charging the unit
-    cost_o_and_m_fixed = abs(ESS_power*Fixed_O_and_M_cost)   #Dependent on year or hourly use per year. 
-    cost_o_and_m_variable = abs(np.sum(schedule_discharge*Variable_O_and_M_cost))
+    cost_o_and_m_fixed = abs(ESS_power*Fixed_O_and_M_cost)    #depending on ESS_power and fixed cost
+    cost_o_and_m_variable = abs(np.sum(schedule_discharge*Variable_O_and_M_cost)) #Dependent on discharge energy from BESS
     cashflow_total =  profit_kWh + profit_peak_kW - cost_charge - cost_o_and_m_fixed - cost_o_and_m_variable #This is the total cashflow after a year with all calculations included
     Divided_cost_profit = [profit_kWh, profit_peak_kW, (-cost_charge), (-cost_o_and_m_fixed), (-cost_o_and_m_variable), cashflow_total]
     #print("Profit: ", profit_kWh, "Profit_peak_kW: ", profit_peak_kW, "Cost_charge: ", -cost_charge, "cost o and m: ", -cost_o_and_m_fixed, "cost o and m Variable: ", -cost_o_and_m_variable)

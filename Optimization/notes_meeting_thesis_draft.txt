@@ -1,0 +1,9 @@
+** Very important with good english etc**
+
+short sentance, commas etc
+
+More graphic materials, more tables, separeate numbers with , 1,000
+
+
+You should include a final chart/table with the summary of the results for the reader to be able to easily compare results. 
+This for economic results (NPV, LCOE, CAPEX) and technical (capacity, energy) something like:

@@ -7,3 +7,45 @@ More graphic materials, more tables, separeate numbers with , 1,000
 
 You should include a final chart/table with the summary of the results for the reader to be able to easily compare results. 
 This for economic results (NPV, LCOE, CAPEX) and technical (capacity, energy) something like:
+
+
+
+Hello Joakim,
+
+ 
+
+Thanks for sharing your report. Very nice work overall.
+
+ 
+
+I have read your thesis report draft and I have made comments and suggestions. Please see the commented version of the file attached.
+
+ 
+
+Some additional general comments format are the following:
+
+?        The writing is very rough at this moment in narrative, paragraph construction and English.
+
+o   Please double check English spelling and use grammar corrector. For instance, “an” is used only before words starting with a vowel (an optimization algorithm) otherwise always use “a” (a genetic algorithm)
+
+o   Use more commas and keep sentences short and to the point.
+
+o   Use more graphic material. For example, it could really improve readability if you give a list using bullet points instead of listing in the paragraph.
+
+o   Improve the quality of pictures and flowcharts
+
+?        I have some technical questions/doubts included in the document that I would like to ask you during a call.
+
+?        You should include a final chart/table with the summary of the results for the reader to be able to easily compare results. This for economic results (NPV, LCOE, CAPEX) and technical (capacity, energy) something like:
+
+
+
+ 
+
+Let’s organize a call before I go on vacation next Tuesday so we can discuss about this.
+
+ 
+
+Best regards
+
+ 

@@ -167,7 +167,7 @@ def Fittnes_LCOS(discount_rate, CAPEX, Yearly_cost, Yearly_energy_out):
 def Fitness_NPV(discount_rate, cashflows):
     """
     Rate is discount rate in %, 8% == 0.08
-    cashflow is an array with the cashflows for each year (10)
+    cashflow is an array with the cashflows for each year (10 year)
     """
     
     NPV = npf.npv(discount_rate, cashflows)  #numpy financial to calculate 
@@ -185,7 +185,7 @@ def cashflow_yearly_NPV(schedule_load, schedule_discharge, demand_cost, Fixed_O_
     cost_o_and_m_variable = abs(np.sum(schedule_discharge*Variable_O_and_M_cost)) #Dependent on discharge energy from BESS
     cashflow_total =  profit_kWh + profit_peak_kW - cost_charge - cost_o_and_m_fixed - cost_o_and_m_variable #This is the total cashflow after a year with all calculations included
     Divided_cost_profit = [profit_kWh, profit_peak_kW, (-cost_charge), (-cost_o_and_m_fixed), (-cost_o_and_m_variable), cashflow_total]
-    #print("Profit: ", profit_kWh, "Profit_peak_kW: ", profit_peak_kW, "Cost_charge: ", -cost_charge, "cost o and m: ", -cost_o_and_m_fixed, "cost o and m Variable: ", -cost_o_and_m_variable)
+    #print("cost o and m: ", -cost_o_and_m_fixed, "cost o and m Variable: ", -cost_o_and_m_variable, "ESS power: ", ESS_power, "cost o and m per kwh: ", Fixed_O_and_M_cost)
     return [cashflow_total, Divided_cost_profit]
 
 def Cost_yearly_LCOS(schedule_load, schedule_discharge, demand_cost, Fixed_O_and_M_cost, Variable_O_and_M_cost, ESS_power): #Gives the profits after all yearly costs and profits

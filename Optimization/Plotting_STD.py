@@ -162,3 +162,17 @@ line8, = ax5.plot(iterations, Case3_FF_LCOS_TIME_STD, label="Case 3 FF LCOS", li
 
 ax5.legend(loc='right', bbox_to_anchor=(1.6, 0.72))
 plt.savefig('Results\Pictures_etc\Compiled Results\TIME-STD-AlL-CASES-LCOS-NPV-COMBINED.jpeg', dpi=300, bbox_inches = "tight")
+
+
+
+
+#Calculate difference in optimization time
+
+Case2_NPV = 1 - (sum(Case2_GA_NPV_TIME)/sum(Case2_FF_NPV_TIME))
+Case2_LCOS = 1 - (sum(Case2_GA_LCOS_TIME)/sum(Case2_FF_LCOS_TIME))
+Case3_NPV = 1 - (sum(Case3_GA_NPV_TIME)/sum(Case3_FF_NPV_TIME))
+Case3_LCOS = 1 - (sum(Case3_GA_LCOS_TIME)/sum(Case3_FF_LCOS_TIME))
+
+Time_diff = [Case2_NPV, Case2_LCOS, Case3_NPV, Case3_LCOS]
+
+print(Time_diff)

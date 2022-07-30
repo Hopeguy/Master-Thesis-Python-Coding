@@ -84,4 +84,5 @@ plt.suptitle("Pygad 200 iterations Schedule", y = 1.025)
 
 
 plt.savefig('Results\Pictures_etc\Schedule\Pie_chart_schedule_pygad.jpeg',  dpi=300, bbox_inches = "tight")
+
 plt.show()

@@ -26,10 +26,6 @@ for count, i in enumerate(X_sensitivity):
     Case2_FF_LCOS_STD[count] = data.iloc[7][f'{i}']
 
 
-    
-
-
-
 
 
 fig, ax = plt.subplots()
@@ -52,3 +48,6 @@ line4, = ax_2.plot(X_sensitivity, Case2_FF_LCOS, label = "Case 2 FF LCOS", lines
 ax_2.legend(loc='right', bbox_to_anchor=(1.5, 0.8))
 plt.title('Case 2: NPV and LCOS vs Change in CAPEX')
 plt.savefig('Results\Sensitivity_analysis_case_2\Case_2_Sensitivity_NPV_LCOS.jpeg',  dpi=300, bbox_inches = "tight")
+
+
+

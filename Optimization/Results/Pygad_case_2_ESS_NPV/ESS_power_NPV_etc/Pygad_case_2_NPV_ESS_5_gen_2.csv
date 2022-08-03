@@ -1,2 +1,0 @@
-ESS_power,ESS_capacity,fitness_function,Time,std_ESS_power,std_ESS_capacity,std_fitness_function,profit_kWh,profit_peak_kW,cost_charge,cost_O_n_M_fixed,cost_O_n_m_variable,Cashflow_total,Cost_investment,Summed_charge_kWh,Summed_Discharge_kWh
-179.80682654995908,47.66716015584578,-47559.010728894165,9.203083515167236,0.0,0.0,0.0,382040.2206065291,216472.54286479703,-383772.91624366964,-14744.811874396368,-4942.762638951071,195052.27271430913,-45307.31452328909,1236590.7505720018,1003905.466603215

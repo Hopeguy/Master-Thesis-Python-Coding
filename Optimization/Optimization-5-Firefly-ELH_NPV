@@ -211,7 +211,7 @@ for i in range(10):
     n= 10  # number of agents (fireflies) Comparable to number of solution
     lower_bound=[0.1/8000, 0.1/np.max(total_energy_max), 0.1/np.max(Heating_hourly_use)]  # first is Capacity, second is for Power they are multiplied with their constant in the fitness function aka 8000, np.max(...), lowest real value is 0.1
     upper_bound=[8000/8000, np.max(total_energy_max)/np.max(total_energy_max), np.max(Heating_hourly_use)/np.max(Heating_hourly_use)]  # upper bound, first is for Capacity, second is for Power
-    n_variables=3  # search space dimension (for this case 2, one for ESS capcity and one for ESS power)
+    n_variables=3  # search space dimension (for this case 3, one for ESS capcity and one for ESS power, one for ELH power)
     iteration= 200
 
       # number of iterations the algorithm will run

@@ -108,7 +108,7 @@ Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to eur
 fitness_function = fitness_func_NPV  #CHANGE BETWEEN LCOS OR NPV AS FITNESS FUNCTION
 
 sol_per_pop = 50          #Number of solutions per population, Comparable to "agents in FF" "Good results at 50 // 200 generation"
-num_generations = 5     #number of generation to run the algorithm
+num_generations = 200    #number of generation to run the algorithm
 num_parents_mating = int(sol_per_pop/2)     #number of solutions that will be mating (50% of total solutions used each generation)
 init_range_low = 0.1          #lowest value starting solutions can take
 init_range_high = 2000     #highest value starting solutions can take
@@ -121,7 +121,7 @@ crossover_probability = 0.8     #How likely it is for a parent to do a crossover
 
 mutation_type = "random"        #what operation the mutation will take, can be [random, swap, adaptive]
 mutation_probability = 0.1        # 10 percent chance of mutation operation to happen for a solution
-gene_space = [{'low': 0.1, 'high': 8000}, {'low': 0.1, 'high': 10}] #np.max(Electricity_load)
+gene_space = [{'low': 0.1, 'high': 8000}, {'low': 0.1, 'high': np.max(Electricity_load)}] 
 
 
 #---------------------------------------------
@@ -129,7 +129,7 @@ gene_space = [{'low': 0.1, 'high': 8000}, {'low': 0.1, 'high': 10}] #np.max(Elec
 
 Result_10_tries = [[],[],[],[],[],[],[],[],[],[],[],[],[]]
 
-for i in range(10):
+for i in range(1):
     #-----------Set up ga-------------
     ga_instance = pygad.GA(num_generations=num_generations,
                        allow_duplicate_genes= False,
@@ -245,18 +245,18 @@ df = pd.DataFrame(raw_data, columns = ['ESS_power', 'ESS_capacity', 'fitness_fun
                                            'Cost_investment', 'Summed_charge_kWh', 'Summed_Discharge_kWh'])
 
 
-save_file_name_std = f"Results\Pygad_Case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_2_NPV_ESS_{num_generations}_gen_2.csv"
-save_file_name_schedule = f"Results\Pygad_Case_2_ESS_NPV\Charge_discharge_capacity\Pygad_case_2_NPV_ESS_{num_generations}_gen_Sch_year_10_2.csv"
+save_file_name_std = f"Results\Pygad_Case_2_ESS_NPV\ESS_power_NPV_etc\Pygad_case_2_NPV_ESS_{num_generations}_gen.csv"
+save_file_name_schedule = f"Results\Pygad_Case_2_ESS_NPV\Charge_discharge_capacity\Pygad_case_2_NPV_ESS_{num_generations}_gen_Sch_year_10.csv"
 
-save_file_name_std_sensitivty = f"Results\Sensitivity_analysis_case_2\Pygad\Pygad_case_2_NPV_ESS_{num_generations}_gen_sensitivity_-20%*_2.csv"
-save_file_name_schedule_sensitivity = f"Results\Sensitivity_analysis_case_2\Pygad\Pygad_case_2_NPV_ESS_{num_generations}_gen_Sch_year_10_sensitivity_-20%_2.csv"
+save_file_name_std_sensitivty = f"Results\Sensitivity_analysis_case_2\Pygad\Pygad_case_2_NPV_ESS_{num_generations}_gen_sensitivity_-20%*.csv"
+save_file_name_schedule_sensitivity = f"Results\Sensitivity_analysis_case_2\Pygad\Pygad_case_2_NPV_ESS_{num_generations}_gen_Sch_year_10_sensitivity_-20%.csv"
 
 df.to_csv(save_file_name_std, index=False, )
 tf.to_csv(save_file_name_schedule, index=False, )
 
-save_file_name_fittnes_plot = f"Results\\Pictures_etc\\Pygad-case-2-NPV-convergence\\fitness_NPV_over_generation_{num_generations}_gen_2.jpeg"
+save_file_name_fittnes_plot = f"Results\\Pictures_etc\\Pygad-case-2-NPV-convergence\\fitness_NPV_over_generation_{num_generations}_gen.jpeg"
 save_file_name_genes_plot = f"Results\\Pictures_etc\\Pygad-case-2-NPV-convergence\\Best_genes_{num_generations}_gen_2.jpeg"
-save_file_name_solution_rate_plot = f"Results\\Pictures_etc\\Pygad-case-2-NPV-convergence\\New_Solution_rate_{num_generations}_gen_2.jpeg"
+save_file_name_solution_rate_plot = f"Results\\Pictures_etc\\Pygad-case-2-NPV-convergence\\New_Solution_rate_{num_generations}_gen.jpeg"
 
 ga_instance.plot_fitness(title= "GA Case 2: NPV", xlabel= "Generation",
                 ylabel="NPV [Euro]", plot_type="plot", save_dir=save_file_name_fittnes_plot)

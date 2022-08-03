@@ -16,6 +16,9 @@ Case2_GA_NPV_TIME_STD, Case2_GA_LCOS_TIME_STD, Case2_FF_NPV_TIME_STD, Case2_FF_L
 Case3_GA_NPV_TIME_STD, Case3_GA_LCOS_TIME_STD, Case3_FF_NPV_TIME_STD, Case3_FF_LCOS_TIME_STD = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
 Case2_GA_NPV_TIME, Case2_GA_LCOS_TIME, Case2_FF_NPV_TIME, Case2_FF_LCOS_TIME = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
 Case3_GA_NPV_TIME, Case3_GA_LCOS_TIME, Case3_FF_NPV_TIME, Case3_FF_LCOS_TIME = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
+Case2_GA_NPV_AVG, Case2_GA_LCOS_AVG, Case2_FF_NPV_AVG, Case2_FF_LCOS_AVG = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
+Case3_GA_NPV_AVG, Case3_GA_LCOS_AVG, Case3_FF_NPV_AVG, Case3_FF_LCOS_AVG = np.zeros(6), np.zeros(6), np.zeros(6), np.zeros(6)
+
 
 for count, i in enumerate(iterations):
     #CASE 2 STD LCOS AND NPV
@@ -54,6 +57,20 @@ for count, i in enumerate(iterations):
     Case3_GA_LCOS_TIME_STD[count] = data.iloc[49][f'{i}']
     Case3_FF_NPV_TIME_STD[count] = data.iloc[50][f'{i}']
     Case3_FF_LCOS_TIME_STD[count] = data.iloc[51][f'{i}']
+
+    #For average value for Case 2
+
+    Case2_GA_NPV_AVG[count] = data.iloc[0][f'{i}']
+    Case2_GA_LCOS_AVG[count] = data.iloc[4][f'{i}']
+    Case2_FF_NPV_AVG[count] = data.iloc[8][f'{i}']
+    Case2_FF_LCOS_AVG[count] = data.iloc[12][f'{i}']
+
+    # For average value for case 3
+    Case3_GA_NPV_AVG[count] = data.iloc[16][f'{i}']
+    Case3_GA_LCOS_AVG[count] = data.iloc[21][f'{i}']
+    Case3_FF_NPV_AVG[count] = data.iloc[26][f'{i}']
+    Case3_FF_LCOS_AVG[count] = data.iloc[31][f'{i}']
+
 
 
 
@@ -164,8 +181,6 @@ ax5.legend(loc='right', bbox_to_anchor=(1.6, 0.72))
 plt.savefig('Results\Pictures_etc\Compiled Results\TIME-STD-AlL-CASES-LCOS-NPV-COMBINED.jpeg', dpi=300, bbox_inches = "tight")
 
 
-
-
 #Calculate difference in optimization time
 
 Case2_NPV = 1 - (sum(Case2_GA_NPV_TIME)/sum(Case2_FF_NPV_TIME))
@@ -176,3 +191,64 @@ Case3_LCOS = 1 - (sum(Case3_GA_LCOS_TIME)/sum(Case3_FF_LCOS_TIME))
 Time_diff = [Case2_NPV, Case2_LCOS, Case3_NPV, Case3_LCOS]
 
 print(Time_diff)
+
+
+fig6, ax6 = plt.subplots()
+
+ax6.errorbar(iterations, Case2_GA_NPV_AVG, Case2_GA_NPV_STD, label = ' Case 2 GA NPV', linestyle='None', marker='^')
+ax6.errorbar(iterations, Case2_FF_NPV_AVG, Case2_FF_NPV_STD, label = 'Case 2 FF NPV', linestyle='None', marker='x')
+ax6.errorbar(iterations, Case3_GA_NPV_AVG, Case3_GA_NPV_STD, label = 'Case 3 GA NPV', linestyle='None', marker='p')
+ax6.errorbar(iterations, Case3_FF_NPV_AVG, Case3_FF_NPV_STD, label = 'Case 3 FF NPV', linestyle='None', marker='o')
+
+ax6.set_ylabel('NPV [EURO]')
+ax6.set_xlabel('Iterations')
+ax6.grid()
+ax6.legend(loc='right', bbox_to_anchor=(1.4, 0.85))
+ax6.set_title('Average NPV with STD')
+
+plt.savefig('Results\Pictures_etc\Compiled Results\All_NPV-Average-and-STD.jpeg', dpi=300, bbox_inches = "tight")
+
+
+fig7, ax7 = plt.subplots()
+
+ax7.errorbar(iterations, Case2_GA_LCOS_AVG, Case2_GA_LCOS_STD, label = 'Case 2 GA LCOS', linestyle='None', marker='^')
+ax7.errorbar(iterations, Case2_FF_LCOS_AVG, Case2_FF_LCOS_STD, label = 'Case 2 FF LCOS', linestyle='None', marker='x')
+ax7.errorbar(iterations, Case3_GA_LCOS_AVG, Case3_GA_LCOS_STD, label = 'Case 3 GA LCOS', linestyle='None', marker='p')
+ax7.errorbar(iterations, Case3_FF_LCOS_AVG, Case3_FF_LCOS_STD, label = 'Case 3 FF LCOS', linestyle='None', marker='o')
+
+ax7.set_ylabel('LCOS [kWh/EURO]')
+ax7.set_xlabel('Iterations')
+ax7.grid()
+ax7.legend(loc='right', bbox_to_anchor=(1.4, 0.85))
+ax7.set_title('Average LCOS with STD')
+
+plt.savefig('Results\Pictures_etc\Compiled Results\LCOS-Average-and-STD.jpeg', dpi=300, bbox_inches = "tight")
+
+
+
+fig8, (ax8, ax9) = plt.subplots(1,2, figsize=(9, 4))
+fig8.suptitle("Average NPV and LCOS wtih STD")
+
+ax8.grid()
+ax8.set_xlabel('Iterations')
+ax8.set_ylabel('NPV [EURO]', color='black')
+
+
+ax8.errorbar(iterations, Case2_GA_NPV_AVG, Case2_GA_NPV_STD, label = 'Case 2 GA NPV', linestyle='None', marker='^')
+ax8.errorbar(iterations, Case2_FF_NPV_AVG, Case2_FF_NPV_STD, label = 'Case 2 FF NPV', linestyle='None', marker='x')
+ax8.errorbar(iterations, Case3_GA_NPV_AVG, Case3_GA_NPV_STD, label = 'Case 3 GA NPV', linestyle='None', marker='p')
+ax8.errorbar(iterations, Case3_FF_NPV_AVG, Case3_FF_NPV_STD, label = 'Case 3 FF NPV', linestyle='None', marker='o')
+
+ax9.set_xlabel('Iterations')
+ax9.set_ylabel('LCOS [EURO/kWh]', color='black')
+ax9.grid()
+
+ax9.errorbar(iterations, Case2_GA_LCOS_AVG, Case2_GA_LCOS_STD, label = 'Case 2 GA', linestyle='None', marker='^')
+ax9.errorbar(iterations, Case2_FF_LCOS_AVG, Case2_FF_LCOS_STD, label = 'Case 2 FF', linestyle='None', marker='x')
+ax9.errorbar(iterations, Case3_GA_LCOS_AVG, Case3_GA_LCOS_STD, label = 'Case 3 GA', linestyle='None', marker='p')
+ax9.errorbar(iterations, Case3_FF_LCOS_AVG, Case3_FF_LCOS_STD, label = 'Case 3 FF', linestyle='None', marker='o')
+
+ax9.legend(loc='right', bbox_to_anchor=(1.45, 0.85))
+
+
+plt.savefig('Results\Pictures_etc\Compiled Results\LCOS-Average-and-STD_Combined.jpeg', dpi=300, bbox_inches = "tight")

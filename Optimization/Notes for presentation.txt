@@ -1,0 +1,7 @@
+* Optimizing for LCOS is important if one wants to use ESS for power stability as, the LCOS is how much it cost per energy outputed from the storage.
+
+* include residual value for ELH in equations for npv??
+
+* write in case study part about testing with different iteraions to see convergence
+
+* For case 3 picutre of breakdowns of charging cost the savings in heatingcost include the cost of electricity to run the ELH

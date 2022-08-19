@@ -108,7 +108,7 @@ Peak_cost = 5.92/1.1218 #5.92 dollar (2022) per kW (max per month) change to eur
 fitness_function = fitness_func_NPV  #CHANGE BETWEEN LCOS OR NPV AS FITNESS FUNCTION
 
 sol_per_pop = 50          #Number of solutions per population, Comparable to "agents in FF" "Good results at 50 // 200 generation"
-num_generations = 200    #number of generation to run the algorithm
+num_generations = 200    #number of generation to run the algorithm for
 num_parents_mating = int(sol_per_pop/2)     #number of solutions that will be mating (50% of total solutions used each generation)
 init_range_low = 0.1          #lowest value starting solutions can take
 init_range_high = 2000     #highest value starting solutions can take

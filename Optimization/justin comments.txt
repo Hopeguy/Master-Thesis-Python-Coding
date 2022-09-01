@@ -1,0 +1,5 @@
+load curve over uses for the schedule functions. 
+
+Load curve uses hours, vs hourly price charts compared with average prices for that day. 
+
+focus on the english, send to felipe, and copy to justin. 
